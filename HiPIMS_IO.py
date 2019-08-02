@@ -10,11 +10,9 @@ import sys
 import time
 from ArcGridDataProcessing import arcgridwrite
 import InputSetupFuncs as ISF
-# import InputSetupFuncs
-# import InputSetupFuncs_MG
 import InputSetupFuncs_MG as ISF_MG
 
-def HiPIMS_setup(folderName, demMat, demHead, numSection=1, boundList=[],
+def HiPIMS_setup(folderName, demMat, demHead, numSection=1, boundList=None,
                fileToCreate='all', h0=0, hU0=[0,0], manning=0.035,
                rain_mask=0, rain_source=np.array([[0,0],[60,0]]),
                sewer_sink=0, cumulative_depth=0, hydraulic_conductivity=0,
@@ -22,13 +20,41 @@ def HiPIMS_setup(folderName, demMat, demHead, numSection=1, boundList=[],
                gauges_pos=[], timesValue=[0,3600,600,3600]):
     """
     folderName: a path to store input folder
+    demMat: numpy array, the DEM data
+    demHead: dictionary, the DEM reference information
+    numSection: scalar, the number of GPUs to run model
+    boundList: a list of dict, each dict contain keys (polyPoints,type,h,hU) to 
+        define a boundary's position, type, and IO sources 
+        1.polyPoints is a numpy array giving X(1st col) and Y(2nd col) coordinates of points 
+          to define the position of a boundary. An empty polyPoints means outline boundary.
+        2.type: 'open'|'rigid'
+        3.h: a two-col numpy array, 1st col is time(s), 2nd col is water depth(m)
+        4.hU: a two-col numpy array, 1st col is time(s), 2nd col is discharge(m3/s)
+             or a three-col numpy array, 2nd col and 3rd col are velocities(m/s) 
+             in x and y direction, respectively
+        example:
+            
+            bound1 = {'polyPoints': [],
+                      'type': 'open',
+                      'h': np.array([(0,0),(60,0)]),
+                      'hU': np.array([(0,0,0),(60,0,0)])} #open outline boundary
+            bound2 = {'polyPoints': np.array([(1,1),(1,10),(10,10),(10,1)]),
+                      'type': 'open',
+                      'h': np.array([(0,8),(60,10)]),
+                      'hU': np.array([(0,0.1),(60,0.2)])}
+            boundList = [bound1,bound2]
+    
     fileToCreate: 'all'|'z','h','hU','manning','sewer_sink',
                         'cumulative_depth','hydraulic_conductivity',
                         'capillary_head','water_content_diff'
                         'precipitation_mask','precipitation_source',
                         'boundary_condition','gauges_pos'
+    
                         
     """
+    if boundList is None:
+        boundList = [{'polyPoints': [],'type': 'open','h': [],'hU': []} ]#outside boundary
+    
     if numSection==1: # call function for single GPU
         InputSetup(folderName, demMat, demHead, boundList, fileToCreate,
                    h0, hU0, manning, rain_mask,rain_source,

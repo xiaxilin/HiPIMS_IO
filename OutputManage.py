@@ -171,7 +171,7 @@ def ArcgridreadGZip(fileName):
     return gridArray,head,extent
 #%%
 #%%
-def GenerateOneGridFile(rootPath,numSection,fileName,compress=True,delete=True):
+def GenerateOneGridFile(fileName,rootPath,numSection,compress=True,delete=True):
     """
     Combine and write a series of MultiGPU ouput asc files as gz file (default) or asc file
     filaName: a string end with '.asc', no file path
@@ -194,7 +194,36 @@ def GenerateOneGridFile(rootPath,numSection,fileName,compress=True,delete=True):
         else:
             arcgridwrite(writeFileName,grid,head)
         print(writeFileName+' is created')
-    return writeFileName
+    return None
+
+def GenerateAllGridFiles(rootPath,numSection,fileTag='*.asc',compress=True,delete=True,parallel=False):
+    """
+    
+    
+    
+    """
+    if isinstance(fileTag,list):
+        filesToCombine = fileTag
+    else:
+        os.chdir(rootPath+str(numSection-1)+'/output')
+        filesToCombine = glob.glob(fileTag)
+        os.chdir(rootPath)
+    if parallel is True:
+        # Parallelizing using Pool.map()
+        import multiprocessing as mp
+        pool = mp.Pool(mp.cpu_count())
+        print(filesToCombine)
+        [pool.apply(GenerateOneGridFile, args=(rootPath,numSection,oneFile)) for oneFile in filesToCombine]
+#        pool.map(GenerateOneGridFile, [oneFile for oneFile in filesToCombine])
+        pool.close()
+    else:
+        for ascFile in filesToCombine:
+            if ascFile.endswith('.asc'):
+                GenerateOneGridFile(rootPath,numSection,ascFile,compress=compress,delete=delete)
+    
+    return None
+
+
 #%%
 def CombineWriteGridFiles(rootPath,numSection,fileTag='*.asc',compress=True,delete=True):
     """
