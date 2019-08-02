@@ -16,17 +16,30 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import ArcGridDataProcessing as AP
 #%% download tar data from internet
-def downloadNimrodTar(year,dateStr='0131',localDir=[]):
-    if len(localDir)==0:
+def downloadNimrodTar(dateStr,localDir=None,cedaUsername=None,cedaPassword=None):
+    """
+    dateStr: YYYYMMDD
+    cedaUsername: 'mxiaodong'
+    cedaPassword: ******
+    """
+    if localDir is None:
         localDir = os.getcwd()+'/'
+    # # your username and password on CEDA website    
+    if cedaUsername is None:
+        import getpass
+        print('please type your username in CEDA:')
+        cedaUsername = input()
+        print('please type your password:')
+        cedaPassword = getpass.getpass()
+
     from ftplib import FTP
-    
+    yearStr = dateStr[0:4]
     ftp = FTP('ftp.ceda.ac.uk')
-    ftp.login('mxiaodong','mxd88719')
-    remoteDir = 'badc/ukmo-nimrod/data/composite/uk-1km/'+str(year)+'/'
+    ftp.login(cedaUsername,cedaPassword)
+    remoteDir = 'badc/ukmo-nimrod/data/composite/uk-1km/'+yearStr+'/'
     ftp.cwd(remoteDir)
     #files = ftp.nlst()# Get All Files
-    fileString = '*'+str(year)+dateStr+'*'
+    fileString = '*'+dateStr+'*'
     files = ftp.nlst(fileString)
     # Print out the files
     for file in files:
