@@ -277,7 +277,13 @@ class raster(object):
     def __init__(self,sourceFile=None,array=None,header=None,epsg=None,projection=None):
         """
         sourceFile: name of a asc/tif file if a file read is needed
-        
+        array: values in each raster cell [a numpy array]
+        header: georeference of the raster [a dictionary containing 6 keys]:
+            nrows,nclos [int]
+            cellsize,xllcorner,yllcorner
+            NODATA_value
+        epsg: epsg code [int]
+        projection: WktProjection [string]
         """
         self.sourceFile = sourceFile
         self.projection = projection
@@ -435,6 +441,28 @@ class raster(object):
         resampled_ds = None
 
         return new_obj
+    
+    def Interpolate_to(self,points,values,method='nearest'):
+        """
+        2D interpolate
+        points: ndarray of floats, shape (n, 2)
+            Data point coordinates. Can either be an array of shape (n, 2), 
+            or a tuple of ndim arrays.
+        values: ndarray of float or complex, shape (n,)
+            Data values.
+        method: {‘linear’, ‘nearest’, ‘cubic’}, optional
+            Method of interpolation.
+        """
+        
+
+        from scipy import interpolate 
+        grid_x,grid_y = self.GetXYcoordinate()
+        array_interp = interpolate.griddata(points, values, (grid_x, grid_y), method=method)
+        new_obj = copy.deepcopy(self)
+        new_obj.array = array_interp
+        new_obj.sourceFile = 'mask_'+new_obj.sourceFile
+        return new_obj
+        
          
 #%%=============================Visualization==================================
     #%% draw inundation map with domain outline
@@ -592,10 +620,13 @@ class raster(object):
         dest_crs = osr.SpatialReference()
         dest_crs.ImportFromEPSG(destEPSG)
         # create dataset with driver
-        driver = gdal.GetDriverByName(driverName)    
+        driver = gdal.GetDriverByName(driverName)
+        ncols = self.header['ncols']
+        nrows = self.header['nrows']
+#        print('ncols:', type(ncols),' - nrows:'+type(nrows))
         dataset = driver.Create(dst_filename,
-            xsize=self.header['ncols'],
-            ysize=self.header['nrows'],
+            xsize=ncols,
+            ysize=nrows,
             bands=1,
             eType=gdal.GDT_Float32)
     
