@@ -10,6 +10,9 @@ import iris
 import warnings
 import gzip
 import numpy as np
+import pandas as pd
+import datetime
+import glob
 from pyproj import Proj, transform
 import sys
 # position storing HiPIMS_IO.py and ArcGridDataProcessing.py
@@ -128,16 +131,28 @@ class MOGREPS_data(object):
     
     def Export_rain_source_array(self,demFile=None):
         """
-        Export rainfall source array
+        Export rainfall source array and timeArray
+        
         """
         #3D array: [layer,row,col]
         _,indArray = self.Create_rain_mask(demFile)
         
         #2D array: row--time, col--value
         rain_source_array = self.data[:,indArray]
-        timeArray = self.attributs['time']
-        return rain_source_array,timeArray
+        #original date
+        t_origin = self.time_units
+        t_origin = datetime.datetime.strptime(t_origin,'hour since %Y-%m-%d %H:%M:%S.%f0 UTC')
+        ref_time = t_origin+datetime.timedelta(self.attributs['forecast_reference_time'][0]/24)
+        
+        dt_series = t_origin+pd.to_timedelta(self.attributs['time'],unit='hour').round('s')
+        time_delta_s = dt_series - ref_time
+        time_delta_s = np.array(time_delta_s.total_seconds()).round()
 
+#        file_dt_str = self.ppFileName.split('_')
+#        hour_ref = int(file_dt_str[5][0:3])
+#        t0 = datetime.datetime.strptime(file_dt_str[3],'%Y%m%d')+datetime.timedelta(int(hour_ref)/24)
+        return rain_source_array,time_delta_s,ref_time
+    
     def Coords_transform(self, SP_coor=[177.5-180, -37.5], option=2):
         """
         convert rotated lon/lat degrees to regular lon/lat degrees
@@ -198,4 +213,31 @@ class MOGREPS_data(object):
         y = y.reshape(lat2.shape)
         return x,y
 
-        
+def WriteRainSourceArray(datetimeStr,realization,demFile=None):
+    """
+    datetimeStr: yyyymmdd_HH [20190617_02]
+    realization: 3-element string '006'
+    """
+    # read mogreps object
+    namestr = datetimeStr+'_'+realization
+    filenames = glob.glob('*'+namestr+'*.gz')
+    filenames.sort()
+    rain_source_array = []
+    time_delta_s = []
+    
+    for gzfile in filenames:
+        obj = MOGREPS_data.Read_object(gzfile)
+        A,B,ref_time = obj.Export_rain_source_array(demFile)
+        rain_source_array.append(A)
+        time_delta_s.append(B.flatten())
+#        print(gzfile)
+    rain_source_array = np.vstack(rain_source_array)
+    time_delta_s = np.hstack(time_delta_s)
+    time_delta_s = time_delta_s.reshape((time_delta_s.size,1))
+    outputArray = np.hstack([time_delta_s,rain_source_array])
+    np.savetxt(namestr+'.txt',outputArray,fmt='%g')
+    return None
+
+
+
+    
