@@ -228,7 +228,9 @@ def WriteRainSourceArray(gzfileList=None,datetimeStr=None,realization=None,demFi
         namestr = datetimeStr+'_'+realization
         filenames = glob.glob('*'+namestr+'*.gz')        
     else:
+        
         filenames = gzfileList
+        namestr = gzfileList[0][-21:-7]
     filenames.sort()
     rain_source_array = []
     time_delta_s = []
