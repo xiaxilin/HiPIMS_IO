@@ -218,7 +218,7 @@ class MOGREPS_data(object):
         y = y.reshape(lat2.shape)
         return x,y
 
-def WriteRainSourceArray(datetimeStr,realization,demFile=None,filetail=None):
+def WriteRainSourceArray(datetimeStr,realization,demFile=None,fileprefix=None):
     """
     datetimeStr: yyyymmdd_HH [20190617_02]
     realization: 3-element string '006'
@@ -240,8 +240,8 @@ def WriteRainSourceArray(datetimeStr,realization,demFile=None,filetail=None):
     time_delta_s = np.hstack(time_delta_s)
     time_delta_s = time_delta_s.reshape((time_delta_s.size,1))
     outputArray = np.hstack([time_delta_s,rain_source_array])
-    if filetail is not None:
-        namestr = namestr+'_'+filetail
+    if fileprefix is not None:
+        namestr = fileprefix+'_'+namestr
     np.savetxt(namestr+'.txt',outputArray,fmt='%g')
     return None
 
