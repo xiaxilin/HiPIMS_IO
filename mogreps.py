@@ -242,6 +242,8 @@ def WriteRainSourceArray(gzfileList=None,datetimeStr=None,realization=None,demFi
         time_delta_s.append(B.flatten())
 #        print(gzfile)
     rain_source_array = np.vstack(rain_source_array)
+    # convert unit from m-2.kg.s-1 to m/s
+    rain_source_array = rain_source_array/1000
     time_delta_s = np.hstack(time_delta_s)
     time_delta_s = time_delta_s.reshape((time_delta_s.size,1))
     outputArray = np.hstack([time_delta_s,rain_source_array])
