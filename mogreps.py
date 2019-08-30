@@ -73,8 +73,13 @@ class MOGREPS_data(object):
         return output_obj
     
     def Create_rain_mask(self,demFile=None,mask_values=None):
-        # create an rainfall mask object of raster
-        # and return
+        """
+        # create and return an rainfall mask object of raster
+        # demFile: the DEM file name
+        # mask_values: an array with the same size of DEM. if it is not given
+                an int sequency value starting from 0 will be given to each
+                mask cell. 
+        """
         from myclass import raster
         x,y = self.Coords_transform()
 
@@ -213,7 +218,7 @@ class MOGREPS_data(object):
         y = y.reshape(lat2.shape)
         return x,y
 
-def WriteRainSourceArray(datetimeStr,realization,demFile=None):
+def WriteRainSourceArray(datetimeStr,realization,demFile=None,filetail=None):
     """
     datetimeStr: yyyymmdd_HH [20190617_02]
     realization: 3-element string '006'
@@ -235,6 +240,8 @@ def WriteRainSourceArray(datetimeStr,realization,demFile=None):
     time_delta_s = np.hstack(time_delta_s)
     time_delta_s = time_delta_s.reshape((time_delta_s.size,1))
     outputArray = np.hstack([time_delta_s,rain_source_array])
+    if filetail is not None:
+        namestr = namestr+'_'+filetail
     np.savetxt(namestr+'.txt',outputArray,fmt='%g')
     return None
 
