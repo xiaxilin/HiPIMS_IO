@@ -218,14 +218,17 @@ class MOGREPS_data(object):
         y = y.reshape(lat2.shape)
         return x,y
 
-def WriteRainSourceArray(datetimeStr,realization,demFile=None,fileprefix=None):
+def WriteRainSourceArray(gzfileList=None,datetimeStr=None,realization=None,demFile=None,fileprefix=None):
     """
     datetimeStr: yyyymmdd_HH [20190617_02]
     realization: 3-element string '006'
     """
     # read mogreps object
-    namestr = datetimeStr+'_'+realization
-    filenames = glob.glob('*'+namestr+'*.gz')
+    if gzfileList is None:
+        namestr = datetimeStr+'_'+realization
+        filenames = glob.glob('*'+namestr+'*.gz')        
+    else:
+        filenames = gzfileList
     filenames.sort()
     rain_source_array = []
     time_delta_s = []
@@ -241,7 +244,7 @@ def WriteRainSourceArray(datetimeStr,realization,demFile=None,fileprefix=None):
     time_delta_s = time_delta_s.reshape((time_delta_s.size,1))
     outputArray = np.hstack([time_delta_s,rain_source_array])
     if fileprefix is not None:
-        namestr = fileprefix+'_'+namestr
+        namestr = fileprefix+namestr
     np.savetxt(namestr+'.txt',outputArray,fmt='%g')
     return None
 
