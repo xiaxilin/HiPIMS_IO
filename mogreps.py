@@ -134,13 +134,14 @@ class MOGREPS_data(object):
         
         return mask_array, indArray#points,values#
     
-    def Export_rain_source_array(self,demFile=None):
+    def Export_rain_source_array(self,demFile=None,indArray=None):
         """
         Export rainfall source array and timeArray
         
         """
         #3D array: [layer,row,col]
-        _,indArray = self.Create_rain_mask(demFile)
+        if indArray is None:
+            _,indArray = self.Create_rain_mask(demFile)
         
         #2D array: row--time, col--value
         rain_source_array = self.data[:,indArray]
@@ -234,10 +235,15 @@ def WriteRainSourceArray(gzfileList=None,datetimeStr=None,realization=None,demFi
     filenames.sort()
     rain_source_array = []
     time_delta_s = []
+    if demFile is not None:
+        obj0 = MOGREPS_data.Read_object(filenames[0])
+        _,indArray = obj0.Create_rain_mask(demFile=demFile)
+    else:
+        indArray = None
     
     for gzfile in filenames:
         obj = MOGREPS_data.Read_object(gzfile)
-        A,B,ref_time = obj.Export_rain_source_array(demFile)
+        A,B,ref_time = obj.Export_rain_source_array(demFile,indArray=indArray)
         rain_source_array.append(A)
         time_delta_s.append(B.flatten())
 #        print(gzfile)
