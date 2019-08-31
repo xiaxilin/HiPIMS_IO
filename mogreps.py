@@ -54,6 +54,15 @@ class MOGREPS_data(object):
             for coord in all_coords:
                 attributs[coord.standard_name]=coord.points
             self.attributs = attributs
+            t_origin = self.time_units
+            t_origin = datetime.datetime.strptime(t_origin,'hour since %Y-%m-%d %H:%M:%S.%f0 UTC')
+            self.forecast_reference_time = t_origin+datetime.timedelta(self.attributs['forecast_reference_time'][0]/24)
+            dt_series = t_origin+pd.to_timedelta(self.attributs['time'],unit='hour').round('s')
+            self.time_datetime = np.array(dt_series)
+            time_delta_s = dt_series - self.forecast_reference_time
+            time_delta_s = np.array(time_delta_s.total_seconds()).round()
+            self.time_seconds = time_delta_s
+            
             
     def Save_object(self, filename=None):
         if filename is None:
