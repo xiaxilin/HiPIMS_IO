@@ -11,6 +11,7 @@ import tarfile
 import gzip
 import nimrod
 import numpy as np
+import getpass
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from datetime import datetime
 import matplotlib.pyplot as plt
@@ -18,7 +19,7 @@ import ArcGridDataProcessing as AP
 #%% download tar data from internet
 def downloadNimrodTar(dateStr,localDir=None,cedaUsername=None,cedaPassword=None):
     """
-    dateStr: YYYYMMDD
+    dateStr: string YYYYMMDD or 
     cedaUsername: 'mxiaodong'
     cedaPassword: ******
     """
@@ -26,26 +27,30 @@ def downloadNimrodTar(dateStr,localDir=None,cedaUsername=None,cedaPassword=None)
         localDir = os.getcwd()+'/'
     # # your username and password on CEDA website    
     if cedaUsername is None:
-        import getpass
+        
         print('please type your username in CEDA:')
         cedaUsername = input()
+    if cedaPassword is None:    
         print('please type your password:')
         cedaPassword = getpass.getpass()
 
     from ftplib import FTP
-    yearStr = dateStr[0:4]
-    ftp = FTP('ftp.ceda.ac.uk')
-    ftp.login(cedaUsername,cedaPassword)
-    remoteDir = 'badc/ukmo-nimrod/data/composite/uk-1km/'+yearStr+'/'
-    ftp.cwd(remoteDir)
-    #files = ftp.nlst()# Get All Files
-    fileString = '*'+dateStr+'*'
-    files = ftp.nlst(fileString)
-    # Print out the files
-    for file in files:
-        print("Downloading..." + file)
-        ftp.retrbinary("RETR " + file ,open(localDir + file, 'wb').write)
-    ftp.close()
+    if type(dateStr)!=list:
+        dateStr = [dateStr]
+    for onedate in dateStr:
+        yearStr = onedate[0:4]
+        ftp = FTP('ftp.ceda.ac.uk')
+        ftp.login(cedaUsername,cedaPassword)
+        remoteDir = 'badc/ukmo-nimrod/data/composite/uk-1km/'+yearStr+'/'
+        ftp.cwd(remoteDir)
+        #files = ftp.nlst()# Get All Files
+        fileString = '*'+onedate+'*'
+        files = ftp.nlst(fileString)
+        # Print out the files
+        for file in files:
+            print("Downloading..." + file)
+            ftp.retrbinary("RETR " + file ,open(localDir + file, 'wb').write)
+        ftp.close()
 #%% read one grid from NIMROD tar file
 def extractOneGridFromNimrodTar(tarfileName,datetimeStr):
     """
@@ -108,8 +113,10 @@ def getRainMaskSource(tarList,demHead,datetimeStart,datetimeEnd=[]):
     INPUTS
     tarList: a list of NIMROD tart files downloaded from badc
     demHead: a dictionary of dem file information
-    datetimeStart: datetime object, the start date and time for rainfall source array
-    datetimeEnd: datetime object, the end date and time for rainfall source array
+    datetimeStart: datetime object, the start date and time for rainfall 
+        source array.
+    datetimeEnd: datetime object, the end date and time for rainfall
+        source array.
     """
     #%% define clip extent
     R = demHead
@@ -127,7 +134,7 @@ def getRainMaskSource(tarList,demHead,datetimeStart,datetimeEnd=[]):
         dtStrList = dtStrList+dtStr1
 #    zMatClip,headClip,extentClip = AP.ArraySquareClip(zMatList[0],head,zExtent)
      #mask value start from 0 and increase colum-wise
-    maskValue = np.arange(np.size(zMat1)).reshape((head['nrows'],head['ncols']),order='F')
+    maskValue = np.arange(np.size(zMat1[0])).reshape((head['nrows'],head['ncols']),order='F')
     rainMask= AP.MaskExtraction(maskValue,head,demHead)
     #%% create rainfall source array
     zMatList = [x for _,x in sorted(zip(dtStrList,zMatList))]
