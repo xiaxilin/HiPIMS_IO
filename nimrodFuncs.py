@@ -12,9 +12,8 @@ import gzip
 import nimrod
 import numpy as np
 import getpass
-import importlib
-importlib.import_module('mpl_toolkits').__path__
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+#import importlib
+#importlib.import_module('mpl_toolkits').__path__
 from datetime import datetime
 import matplotlib.pyplot as plt
 import ArcGridDataProcessing as AP
@@ -191,7 +190,8 @@ def initialMap(zMat,zExtent,poly_df=[],mapExtent=[],figsize=(6,8),vmin=0,vmax=10
         plt.yticks(rotation=90)
     
     ax.axes.grid(linestyle='--',linewidth=0.5)
-    
+    from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
     axins = inset_axes(ax,
                width="5%",  # width = 5% of parent_bbox width
                height="100%",  # height : 50%
