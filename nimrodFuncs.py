@@ -12,6 +12,8 @@ import gzip
 import nimrod
 import numpy as np
 import getpass
+import importlib
+importlib.import_module('mpl_toolkits').__path__
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from datetime import datetime
 import matplotlib.pyplot as plt
