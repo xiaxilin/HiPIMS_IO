@@ -291,13 +291,6 @@ def WriteRainSource(rootPath,rain_source,numSection):
         ISF_MG.WriteRainSource_Sec(sectionPathList,rain_source)
     return None
 #%% device_setup.dat
-<<<<<<< HEAD
-def GenDeviceFile(rootPath,numGPU,Values=None):
-    if Values is None:
-        Values=np.array(range(numGPU))
-    else:
-        Values=np.array(Values)
-=======
 def GenDeviceFile(rootPath=None,numGPU=1,Values=None):
     """
     Generate a device_setup.dat file. The file contains numbers representing
@@ -311,7 +304,6 @@ def GenDeviceFile(rootPath=None,numGPU=1,Values=None):
     if Values is None:
         Values=np.array(range(numGPU))
     Values=np.array(Values)
->>>>>>> 5fa346a252c3bd31f01124b26fbc2597a6f02950
     Values = Values.reshape((1,Values.size))
     if numGPU==1:
         np.savetxt(rootPath+'/input/device_setup.dat',Values,fmt='%g')
