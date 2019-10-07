@@ -8,6 +8,7 @@ Created on Fri Dec  7 12:22:28 2018
 import numpy as np
 import sys
 import time
+import os
 from ArcGridDataProcessing import arcgridwrite
 import InputSetupFuncs as ISF
 import InputSetupFuncs_MG as ISF_MG
@@ -290,11 +291,27 @@ def WriteRainSource(rootPath,rain_source,numSection):
         ISF_MG.WriteRainSource_Sec(sectionPathList,rain_source)
     return None
 #%% device_setup.dat
+<<<<<<< HEAD
 def GenDeviceFile(rootPath,numGPU,Values=None):
     if Values is None:
         Values=np.array(range(numGPU))
     else:
         Values=np.array(Values)
+=======
+def GenDeviceFile(rootPath=None,numGPU=1,Values=None):
+    """
+    Generate a device_setup.dat file. The file contains numbers representing
+    the GPU number for each section
+    rootPath: string, the path of model
+    numGPU: int, the number of GPUs to use
+    Values: array or list of int, representing the GPU number
+    """
+    if rootPath is None:
+        rootPath = os.getcwd()
+    if Values is None:
+        Values=np.array(range(numGPU))
+    Values=np.array(Values)
+>>>>>>> 5fa346a252c3bd31f01124b26fbc2597a6f02950
     Values = Values.reshape((1,Values.size))
     if numGPU==1:
         np.savetxt(rootPath+'/input/device_setup.dat',Values,fmt='%g')
@@ -302,7 +319,19 @@ def GenDeviceFile(rootPath,numGPU,Values=None):
         np.savetxt(rootPath+'/device_setup.dat',Values,fmt='%g')
     return None
 #%% times_setup.dat
-def GenTimeFile(rootPath,numGPU,Values=[0,3600,1800,3600]):
+def GenTimeFile(rootPath=None,numGPU=1,Values=None):
+    """
+    Generate a times_setup.dat file. The file contains numbers representing
+    the start time, end time, output interval, and backup interval in seconds
+    rootPath: string, the path of model
+    numGPU: int, the number of GPUs to use
+    Values: array or list of int/float, representing time in seconds, default
+        values are [0,3600,1800,3600]
+    """
+    if rootPath is None:
+        rootPath = os.getcwd()
+    if Values is None:
+        Values=np.array([0,3600,1800,3600])
     Values=np.array(Values)
     Values = Values.reshape((1,Values.size))
     if numGPU==1:
