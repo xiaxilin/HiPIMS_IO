@@ -290,9 +290,11 @@ def WriteRainSource(rootPath,rain_source,numSection):
         ISF_MG.WriteRainSource_Sec(sectionPathList,rain_source)
     return None
 #%% device_setup.dat
-def GenDeviceFile(rootPath,numGPU,Values=[]):
-    if len(Values)==0:
+def GenDeviceFile(rootPath,numGPU,Values=None):
+    if Values is None:
         Values=np.array(range(numGPU))
+    else:
+        Values=np.array(Values)
     Values = Values.reshape((1,Values.size))
     if numGPU==1:
         np.savetxt(rootPath+'/input/device_setup.dat',Values,fmt='%g')
