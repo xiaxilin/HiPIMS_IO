@@ -53,6 +53,17 @@ def HiPIMS_setup(folderName, demMat, demHead, numSection=1, boundList=None,
     
                         
     """
+    # Summary information
+#    Number of Section
+#    Initial condition
+#    Boundary condition
+#    Rainfall data
+#    Parameters:
+    numValidCells = ~np.isnan(demMat)
+    numValidCells = numValidCells.sum()
+    summaryInfor = ModelSummary(rootPath=folderName,numGPU=numSection,
+                                demHead=demHead,numValidCells=numValidCells)
+    
     if boundList is None:
         boundList = [{'polyPoints': [],'type': 'open','h': [],'hU': []} ]#outside boundary
     
@@ -70,8 +81,15 @@ def HiPIMS_setup(folderName, demMat, demHead, numSection=1, boundList=None,
         GenDeviceFile(folderName,numSection)
     # start, end, output interval, backup interval, cooldown interval
     if fileToCreate=='all' or 'times_setup' in fileToCreate:
-        GenTimeFile(folderName,numSection,Values=timesValue) 
-    return None
+        GenTimeFile(folderName,numSection,Values=timesValue)
+    
+    summaryInfor.AddParamInfor('h0',h0)
+#    summaryInfor.AddParamInfor('hU0',hU0)
+    summaryInfor.AddParamInfor('manning',manning)
+    summaryInfor.AddParamInfor('sewer_sink',sewer_sink)
+#    summaryInfor.WriteReadme(folderName+'/readme.txt')
+#    summaryInfor.Display()
+    return summaryInfor
 
 #%%****************************************************************************
 
@@ -331,6 +349,79 @@ def GenTimeFile(rootPath=None,numGPU=1,Values=None):
     else:
         np.savetxt(rootPath+'/times_setup.dat',Values,fmt='%g')
     return None
+#%% model information summary
+class ModelSummary(object):
+        #rootPath,numGPU,initialCondition,boundaryCondition):
+    """
+    store and disply all model information including:
+    RootPath
+    Number of Section
+    Initial condition
+    Boundary condition
+    Rainfall data
+    Parameters:
+        manning:
+    """
+    #%======================== initialization function ===========================   
+    def __init__(self,rootPath,numGPU,demHead,numValidCells,
+                 initialCondition=None,boundaryCondition=None):
+        self.__rootPath = rootPath
+        self.__numValidCells = numValidCells
+        self.__domainArea = numValidCells*(demHead['cellsize']**2)
+        self.__summaryInfor = {'Root path':rootPath,
+                        'Number of Sections':str(numGPU),
+                        'Grid size': 
+                            '{:d} rows * {:d} cols, {:.3f} m cellsize'.format(
+                                    demHead['nrows'],demHead['ncols'],demHead['cellsize']),
+                        'Domain area':'{1:,} m^2 with {0:,} valid cells'.format(
+                                    numValidCells,self.__domainArea)
+                        }
+    
+    def Display(self):
+        """
+        Display the model summary information
+        
+        """
+        print('********Model summary**************')
+        for key in self.__summaryInfor.keys():
+            print(key+': '+self.__summaryInfor[key])
+        print('***********************************')
+    
+    def WriteReadme(self,filename=None):
+        """
+        Write readme file for the summary information
+        """
+        if filename is None:
+            filename = self.__rootPath+'/readme.txt'
+        with open(filename,'w') as f:
+            for key,value in self.__summaryInfor.items():
+                f.write(key+': '+value)
+    
+    def AddItems(self,itemName,itemValue):
+        if not isinstance(itemValue,str):
+            itemValue = str(itemValue)
+        self.__summaryInfor[itemName]=itemValue
+    
+    def AddParamInfor(self,paramName,paramValue):
+        paramValue = np.array(paramValue)
+        itemName = paramName
+        if paramValue.size==1:
+            itemValue = ' {:} for all cells'.format(paramValue)
+        else:
+            if paramName in ['h0','hU0']:
+                numWetCells = np.sum(paramValue>0)
+                numWetCellsRate = numWetCells/paramValue.size
+                itemValue = ' Wet cells ratio: {:.2f}%'.format(numWetCellsRate*100)
+            else:
+                itemNumbers,itemNumberCounts = np.unique(paramValue,return_counts=True)
+                itemValue = ' Values{:}, ratio{:}'.format(itemNumbers,itemNumberCounts/paramValue.size)
+                
+
+        self.__summaryInfor[itemName]=itemValue
+            
+
+        
+        
 #%% Displays or updates a console progress bar
 def ProgressBar(total, progress, fileTag, timeLeft):
     """

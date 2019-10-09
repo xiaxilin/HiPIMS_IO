@@ -10,14 +10,14 @@ import os
 import sys
 import numpy as np
 import time
-scriptsPath = '/Users/b4042552/Dropbox/Python/HiPIMS' # position storing HiPIMS_IO.py and ArcGridDataProcessing.py
+scriptsPath = '/Users/ming/Dropbox/Python/HiPIMS' # position storing HiPIMS_IO.py and ArcGridDataProcessing.py
 sys.path.insert(0,scriptsPath)
 
 from HiPIMS_IO import HiPIMS_setup
 import ArcGridDataProcessing as AP
 
 # define root path for the example case
-rootPath='/Users/b4042552/Dropbox/Python/CaseP'
+rootPath='/Users/ming/Dropbox/Python/CaseP'
 
 # read example DEM data
 demMat,demHead,demExtent = AP.arcgridread('ExampleDEM.asc') # stored in the same dir with HiPIMS_IO.py
@@ -49,9 +49,13 @@ os.chdir(rootPath)
 
 # generate input files for HiPIMS
 start = time.perf_counter()
-HiPIMS_setup(rootPath,demMat,demHead,numSection=numSection,h0=0,
+summaryInfor=HiPIMS_setup(rootPath,demMat,demHead,numSection=numSection,h0=0,
                         boundList=boundList,fileToCreate='all',
                         rain_source = rain_source,
                         gauges_pos=gauges_pos)
 end = time.perf_counter()
 print('total time elapse: '+str(end-start))
+summaryInfor.AddItems('Boundary Condition','three bounds 1 open, 2 h given, 3 hU given')
+summaryInfor.AddItems('Rainfall Source','3 hours rainfal 100mm')
+summaryInfor.Display()
+summaryInfor.WriteReadme()
