@@ -617,4 +617,24 @@ class raster(object):
         # place all the text on one line
         output = remove_spaces.replace("\n", "")
         self.projection = output
-        return output         
+        return output
+
+#%% shapePoints= makeDiagonalShape(extent)
+def makeDiagonalShape(extent):
+    #extent = (left,right,bottom,top)
+    shapePoints = np.array([[extent[0],extent[2]],
+                           [extent[1],extent[2]],
+                           [extent[1],extent[3]],
+                           [extent[0],extent[3]]])
+    return shapePoints
+
+#%% convert head data to extent
+def demHead2Extent(demHead):
+    # convert dem head file (dict) to a spatial extent of the DEM
+    R = demHead
+    left = R['xllcorner']
+    right = R['xllcorner']+R['ncols']*R['cellsize']
+    bottom = R['yllcorner']
+    top = R['yllcorner']+R['nrows']*R['cellsize']
+    extent = (left,right,bottom,top)
+    return extent         

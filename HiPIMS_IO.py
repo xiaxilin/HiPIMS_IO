@@ -87,7 +87,11 @@ def HiPIMS_setup(folderName, demMat, demHead, numSection=1, boundList=None,
 #    summaryInfor.AddParamInfor('hU0',hU0)
     summaryInfor.AddParamInfor('manning',manning)
     summaryInfor.AddParamInfor('sewer_sink',sewer_sink)
-#    summaryInfor.WriteReadme(folderName+'/readme.txt')
+    summaryInfor.AddParamInfor('cumulative_depth',cumulative_depth)
+    summaryInfor.AddParamInfor('hydraulic_conductivity',hydraulic_conductivity)
+    summaryInfor.AddParamInfor('capillary_head',capillary_head)
+    summaryInfor.AddParamInfor('water_content_diff',water_content_diff)
+#    summaryInfor.WriteReadme()
 #    summaryInfor.Display()
     return summaryInfor
 
@@ -371,7 +375,7 @@ class ModelSummary(object):
         self.__summaryInfor = {'Root path':rootPath,
                         'Number of Sections':str(numGPU),
                         'Grid size': 
-                            '{:d} rows * {:d} cols, {:.3f} m cellsize'.format(
+                            '{:d} rows * {:d} cols, {:.2f}m resolution'.format(
                                     demHead['nrows'],demHead['ncols'],demHead['cellsize']),
                         'Domain area':'{1:,} m^2 with {0:,} valid cells'.format(
                                     numValidCells,self.__domainArea)
@@ -382,10 +386,10 @@ class ModelSummary(object):
         Display the model summary information
         
         """
-        print('********Model summary**************')
+        print('*******************Model summary***************')
         for key in self.__summaryInfor.keys():
             print(key+': '+self.__summaryInfor[key])
-        print('***********************************')
+        print('***********************************************')
     
     def WriteReadme(self,filename=None):
         """
@@ -395,7 +399,7 @@ class ModelSummary(object):
             filename = self.__rootPath+'/readme.txt'
         with open(filename,'w') as f:
             for key,value in self.__summaryInfor.items():
-                f.write(key+': '+value)
+                f.write(key+': '+value+'\n')
     
     def AddItems(self,itemName,itemValue):
         if not isinstance(itemValue,str):

@@ -22,6 +22,11 @@ rootPath='/Users/ming/Dropbox/Python/CaseP'
 # read example DEM data
 demMat,demHead,demExtent = AP.arcgridread('ExampleDEM.asc') # stored in the same dir with HiPIMS_IO.py
 
+#%% define initial condition
+
+h0 = np.zeros(demMat.shape)
+h0[demMat<50]=1
+
 # define boundary condition
 bound1Points = np.array([[535, 206], [545, 206], [545, 210], [535, 210]])*1000
 bound2Points = np.array([[520, 230], [530, 230], [530, 235], [520, 235]])*1000
@@ -31,7 +36,7 @@ dBound2 = {'polyPoints': bound2Points,'type': 'open','hU': [[0,50000],[60,30000]
 boundList = [dBound0,dBound1,dBound2]
 del dBound0,dBound1,dBound2,bound1Points,bound2Points
 
-# define rainfall source, a same rainfall source for the whole model domain
+#%% define rainfall source, a same rainfall source for the whole model domain
 # the rainfall mask is default defined as 0 for all the domain cells
 rain_source = np.array([[0,100/1000/3600/24],
                         [86400,100/1000/3600/24],
@@ -49,13 +54,13 @@ os.chdir(rootPath)
 
 # generate input files for HiPIMS
 start = time.perf_counter()
-summaryInfor=HiPIMS_setup(rootPath,demMat,demHead,numSection=numSection,h0=0,
+summaryInfor=HiPIMS_setup(rootPath,demMat,demHead,numSection=numSection,h0=h0,
                         boundList=boundList,fileToCreate='all',
                         rain_source = rain_source,
                         gauges_pos=gauges_pos)
 end = time.perf_counter()
 print('total time elapse: '+str(end-start))
-summaryInfor.AddItems('Boundary Condition','three bounds 1 open, 2 h given, 3 hU given')
-summaryInfor.AddItems('Rainfall Source','3 hours rainfal 100mm')
+summaryInfor.AddItems('Boundary Condition','three bounds 1. open, 2. h given, 3. hU given')
+summaryInfor.AddItems('Rainfall Source','3 hours rainfall 100mm')
 summaryInfor.Display()
 summaryInfor.WriteReadme()
