@@ -9,6 +9,7 @@ import numpy as np
 import sys
 import time
 import os
+import pickle
 from ArcGridDataProcessing import arcgridwrite
 import InputSetupFuncs as ISF
 import InputSetupFuncs_MG as ISF_MG
@@ -422,7 +423,9 @@ class ModelSummary(object):
                 
 
         self.__summaryInfor[itemName]=itemValue
-            
+    def Save_object(self,filename):
+        with open(filename, 'wb') as output:  # Overwrites any existing file.
+            pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)        
 
         
         
