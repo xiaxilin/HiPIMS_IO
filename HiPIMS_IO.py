@@ -92,6 +92,8 @@ def HiPIMS_setup(folderName, demMat, demHead, numSection=1, boundList=None,
     summaryInfor.AddParamInfor('hydraulic_conductivity',hydraulic_conductivity)
     summaryInfor.AddParamInfor('capillary_head',capillary_head)
     summaryInfor.AddParamInfor('water_content_diff',water_content_diff)
+    rainMask_numbers = np.unique(np.array(rain_mask))    
+    summaryInfor.AddParamInfor('Number of rain sources',rainMask_numbers.size)
 #    summaryInfor.WriteReadme()
 #    summaryInfor.Display()
     return summaryInfor

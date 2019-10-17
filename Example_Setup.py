@@ -20,6 +20,7 @@ import ArcGridDataProcessing as AP
 rootPath='/Users/ming/Dropbox/Python/CaseP'
 
 # read example DEM data
+os.chdir(scriptsPath)
 demMat,demHead,demExtent = AP.arcgridread('ExampleDEM.asc') # stored in the same dir with HiPIMS_IO.py
 
 #%% define initial condition
@@ -64,3 +65,9 @@ summaryInfor.AddItems('Boundary Condition','three bounds 1. open, 2. h given, 3.
 summaryInfor.AddItems('Rainfall Source','3 hours rainfall 100mm')
 summaryInfor.Display()
 summaryInfor.WriteReadme()
+# save summary information object in a file
+summaryInfor.Save_object('summaryInfor.pkl')
+#%% read the summary information object
+import pickle
+with open('summaryInfor.pkl', 'rb') as input:
+    company1 = pickle.load(input)
