@@ -79,6 +79,7 @@ class InputHipims(object):
     """
     # default parameters
     attributes_default = {'h0':0,'hU0x':0,'hU0y':0,
+                       'precipitation':0,
                        'precipitation_mask':0,
                        'precipitation_source':np.array([[0,0],[1,0]]),
                        'manning':0.035,
@@ -247,7 +248,7 @@ class InputHipims(object):
                         'boundary_condition','gauges_pos'        
         """
         grid_files = ['z','h','hU','precipitation_mask',
-                             'manning','sewer_sink',
+                             'manning','sewer_sink', 'precipitation',
                              'cumulative_depth', 'hydraulic_conductivity',
                              'capillary_head', 'water_content_diff']
         if file_tag is None or file_tag=='all':
@@ -278,7 +279,7 @@ class InputHipims(object):
         """
         if file_tag not in ['z','h','hU','manning','sewer_sink',
                         'cumulative_depth', 'precipitation_mask',
-                        'hydraulic_conductivity',
+                        'hydraulic_conductivity', 'precipitation',
                         'capillary_head', 'water_content_diff']:
             raise ValueError(file_tag+' is not a grid-based file')
         if singleGPU or self.num_of_sections==1: 
@@ -603,7 +604,7 @@ class InputHipims(object):
                 bounds_vect = None
             else:
                 bounds_vect = self.__get_boundary_id_code_array(file_tag)
-                _write_two_arrays(file_name,cells_vect,bounds_vect)
+            _write_two_arrays(file_name,cells_vect,bounds_vect)
         return None
       
     def __write_boundary_conditions(self,field_dir,file_tag='both'):
