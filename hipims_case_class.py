@@ -65,7 +65,7 @@ class InputHipims(object):
         __get_cell_subs:
         __divide_grid: split model domain:
         __get_boundary_id_code_array:
-        __get_vector_value
+        __get_vector_value:
         __write_grid_files:
         __write_boundary_conditions:
         __write_gauge_pos:
@@ -97,7 +97,11 @@ class InputHipims(object):
         if case_folder is None: 
             case_folder=os.getcwd()
         self.case_folder = case_folder
-        self.data_folders = _create_IO_folders(case_folder)
+        if num_of_sections>1:
+            make_dir=False
+        else:
+            make_dir=True
+        self.data_folders = _create_IO_folders(case_folder,make_dir)
         self.num_of_sections = num_of_sections
         self.attributes = InputHipims.attributes_default.copy()
         if dem_file is not None:
@@ -301,23 +305,9 @@ class InputHipims(object):
         rainfall mask can be written by function write_grid_files
         """
         rain_source = self.attributes['precipitation_source']
-        def write_rainfall_file(field_dir,rain_source):
-            file_name = field_dir + 'precipitation_source_all.dat'
-            num_source = rain_source.shape[1]-1
-            formatSpec = ['%.8e']*num_source
-            formatSpec.insert(0,'%g')
-            with open(file_name,'w') as file2write:
-                file2write.write("%d\n" % num_source)
-                np.savetxt(file2write,rain_source,fmt=formatSpec,delimiter=' ')
-            return file_name
-        
-        if self.num_of_sections>1:  # multiple-GPU
-            field_dir = self.Sections[0].data_folders['field']
-            file_name = write_rainfall_file(field_dir,rain_source)
-            self.__copy_to_all_sections(file_name)
-        else:
-            field_dir = self.data_folders['field']
-            file_name = write_rainfall_file(field_dir,rain_source)            
+        case_folder = self.case_folder
+        num_of_sections = self.num_of_sections
+        write_rain_source(rain_source,case_folder,num_of_sections)
         return None
     
     def write_gauges_position(self,gauges_pos=None):
@@ -715,7 +705,7 @@ class InputHipims_MG(InputHipims):
     section_NO = 0
     def __init__(self,dem_array,header,case_folder,num_of_sections):
         self.case_folder = case_folder
-        self.data_folders = _create_IO_folders(case_folder)
+        self.data_folders = _create_IO_folders(case_folder,make_dir=True)
         self.num_of_sections = num_of_sections
         self.Raster = myclass.raster(array=dem_array,header=header)
         self.section_NO = InputHipims_MG.section_NO
@@ -1096,7 +1086,7 @@ def _get_boundary_code(boudnary_data_table):
     return data_table
 
 #%create IO Folders for each case
-def _create_IO_folders(case_folder):
+def _create_IO_folders(case_folder,make_dir=False):
     """ create Input-Output path for a Hipims case 
         (compatible for single/multi-GPU)
     Return:
@@ -1107,15 +1097,15 @@ def _create_IO_folders(case_folder):
         folder_name = folder_name+'/'        
     dir_input = folder_name+'input/'
     dir_output = folder_name+'output/'
-    if not os.path.exists(dir_output):
+    if not os.path.exists(dir_output) and make_dir:
         os.makedirs(dir_output)
-    if not os.path.exists(dir_input):
+    if not os.path.exists(dir_input) and make_dir:
         os.makedirs(dir_input)
     dir_mesh = dir_input+'mesh/'
-    if not os.path.exists(dir_mesh):
+    if not os.path.exists(dir_mesh) and make_dir:
         os.makedirs(dir_mesh)
     dir_field = dir_input+'field/'
-    if not os.path.exists(dir_field):
+    if not os.path.exists(dir_field) and make_dir:
         os.makedirs(dir_field)
     data_folders = {'input':dir_input, 'output':dir_output,
                     'mesh':dir_mesh, 'field':dir_field}
@@ -1214,9 +1204,10 @@ def write_rain_source(rain_source,case_folder=None,num_of_sections=1):
     with open(file_name,'w') as file2write:
         file2write.write("%d\n" % num_mask_cells)
         np.savetxt(file2write,rain_source,fmt=format_spec,delimiter=' ')  
-    for i in np.arrange(num_of_sections):
-        field_dir = case_folder+str(i)+'/input/field/'
-        shutil.copy2(file_name,field_dir) 
+    if num_of_sections>1:
+        for i in np.arange(1,num_of_sections):
+            field_dir = case_folder+str(i)+'/input/field/'
+            shutil.copy2(file_name,field_dir) 
     return None
 
 #%% model information summary
@@ -1318,6 +1309,8 @@ def load_object(file_name):
 
 def save_object(obj,file_name):
     # Overwrites any existing file.
+    if not file_name.endswith('.pickle'):
+        file_name = file_name+'.pickle'
     with open(file_name, 'wb') as output_file:  
         pickle.dump(obj, output_file, pickle.HIGHEST_PROTOCOL)     
         

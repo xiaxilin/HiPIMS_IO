@@ -6,7 +6,6 @@ Created on Sun Dec  2 21:40:54 2018
 
 @author: Xiaodong MIng
 """
-import os
 import sys
 import numpy as np
 import time
@@ -16,13 +15,14 @@ sys.path.insert(0,scriptsPath)
 import hipims_case_class as hp
 
 # define root path for the example case
-rootPath='/Users/ming/Dropbox/Python/CaseP'
+case_folder='/Users/ming/Dropbox/Python/CaseP'
 
 # read example DEM data
 demFile = 'ExampleDEM.asc'
 #demMat,demHead,demExtent = AP.arcgridread('ExampleDEM.asc') # stored in the same dir with HiPIMS_IO.py
 
-HP_obj = hp.InputHipims(dem_file=demFile,num_of_sections=3)
+HP_obj = hp.InputHipims(dem_file=demFile, num_of_sections=1,
+                        case_folder=case_folder)
 #%% define boundary condition
 bound1Points = np.array([[535, 206], [545, 206], [545, 210], [535, 210]])*1000
 bound2Points = np.array([[520, 230], [530, 230], [530, 235], [520, 235]])*1000
@@ -37,7 +37,6 @@ dem_array[np.isnan(dem_array)]=500
 h0 = dem_array*0
 h0[dem_array<50]=1
 HP_obj.set_parameter('h0',h0)
-#HP_obj.Sections[1].Summary.display()
 HP_obj.Summary.display()
 #output_list = HP_obj.write_input_files('boundary_condition')
 
@@ -85,4 +84,4 @@ HP_obj.write_input_files() # write all input files
 end = time.perf_counter()
 print('total time elapse: '+str(end-start))
 HP_obj.Summary.display()
-HP_obj.save_object('hp_obj')
+HP_obj.save_object(case_folder+'/hp_obj')
