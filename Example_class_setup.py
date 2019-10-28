@@ -27,13 +27,10 @@ import hipims_case_class as hp
 scriptsPath = '/Users/ming/Dropbox/Python/HiPIMS' 
 sys.path.insert(0,scriptsPath)
 
-
+#%%========================= For single GPU ===================================
 # define root path for the example case
 case_folder='/Users/ming/Dropbox/Python/CaseP'
 dem_data = 'ExampleDEM.asc' # provide dem data
-
-
-#%%========================= For single GPU ===================================
 HP_obj = hp.InputHipims(dem_data=dem_data, 
                         num_of_sections=1,
                         case_folder=case_folder)
@@ -101,10 +98,12 @@ rain_source = np.array([[0, 0, 50/1000/3600],
                         [86400, 0, 30/1000/3600],
                         [86401, 0, 0]])
 HP_obj_m.set_rainfall(rain_source=rain_source)
-# change manning parameters
-HP_obj_m.set_parameter('manning',0.055)
 # generate all input files
 HP_obj_m.write_input_files()
+# change manning parameters
+HP_obj_m.set_parameter('manning',0.055)
+# write manning.dat for multiple gpu
+HP_obj_m.write_input_files('manning')
 # show summary
 HP_obj_m.Summary.display()
 # save the object as a file

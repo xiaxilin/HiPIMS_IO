@@ -265,7 +265,10 @@ class InputHipims:
         elif file_tag == 'halo':
             self.write_halo_file()
         else:
-            raise ValueError('file_tag is not recognized')
+            if file_tag in grid_files:
+                self.write_grid_files(file_tag)
+            else:
+                raise ValueError('file_tag is not recognized')
 
     def set_case_folder(self, new_folder=None, make_dir=False):
         """ Initialize, renew, or create case and data folders
