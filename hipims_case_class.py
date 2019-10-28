@@ -39,10 +39,11 @@ class InputHipims:
         case_folder: (str) the absolute path of the case folder
         data_folders: (dict) paths for data folders (input, output, mesh, field)
         num_of_sections: (scalar) number of GPUs to run the model
-        Boundary: a boundary object of class Boundary
+        Boundary: a boundary object of class Boundary to provide boundary cells
+            location, ID, type, and source data.
         Raster: a raster object to provide DEM data
-        Summary: an ModelSummary object to record model information
-        Sections: a list of objects of sub-class InputHipimsSub
+        Summary: a ModelSummary object to record model information
+        Sections: a list of objects of child-class InputHipimsSub
         attributes_default: (dict) default model attribute names and values
         attributes: (dict) model attribute names and values
     Properties (Private):
@@ -58,7 +59,8 @@ class InputHipims:
         set_gauges_position: set X-Y coordinates of monitoring  gauges
         write_input_files: write all input files or a specific file
         write_grid_files: write grid-based data files
-        write_boundary_conditions: write boundary sources
+        write_boundary_conditions: write boundary sources, if flow time series
+            is given, it will be converted to velocities in x and y directions
         write_gauges_position: write coordinates of monitoring gauges
         write_halo_file: write overlayed cell ID for multiple GPU cases
     Methods(protected):
@@ -110,7 +112,8 @@ class InputHipims:
         # divide model domain to several sections if it is not a sub section
         # each section contains a "HiPIMS_IO_class.InputHipimsSub" object
         if isinstance(self, InputHipimsSub):
-            print('child class object '+str(self.section_id))
+#            print('child class object '+str(self.section_id))
+            pass
         else:
             self.__divide_grid()
             self._global_header = self.Raster.header
@@ -157,15 +160,18 @@ class InputHipims:
         bound_obj = Boundary(boundary_list, outline_boundary)
         valid_subs = self._valid_cell_subs
         outline_subs = self._outline_cell_subs
-        dem_header = self._global_header
-        # add the subsripts and id of boundary cells on the domain grid
-        bound_obj._fetch_boundary_cells(valid_subs, outline_subs, dem_header)
+        if not isinstance(self,InputHipimsSub):
+            dem_header = self._global_header
+        # add the subsripts and id of boundary cells on the domain grid        
+            bound_obj._fetch_boundary_cells(valid_subs, 
+                                            outline_subs, dem_header)
         self.Boundary = bound_obj
         if hasattr(self, 'Sections'):
             bound_obj._divide_domain(self)
         summary_str = bound_obj.get_summary()
         self.Summary.add_items('Boundary conditions', summary_str)
-        self.Boundary.print_summary()
+#        self.Boundary.print_summary()
+
     def set_parameter(self, parameter_name, parameter_value):
         """ Set grid-based parameters
         parameter_name: (str) including: h0, hU0x, hU0y, manning,
@@ -352,7 +358,8 @@ class InputHipims:
                     if key in overlayed_id.keys():
                         line_ids = overlayed_id[key]
                         line_ids = np.reshape(line_ids, (1, line_ids.size))
-                        np.savetxt(file2write, line_ids, fmt='%d', delimiter=' ')
+                        np.savetxt(file2write, 
+                                   line_ids, fmt='%d', delimiter=' ')
                     else:
                         file2write.write(' \n')
 
@@ -416,8 +423,8 @@ class InputHipims:
         self._global_header = dem_header
         # subscripts of the split row [0, 1,...] from bottom to top
         split_rows = _get_split_rows(self.Raster.array, num_of_sections)
-        array_local, header_local = _split_array_by_rows(self.Raster.array,
-                                                         dem_header, split_rows)
+        array_local, header_local = \
+            _split_array_by_rows(self.Raster.array, dem_header, split_rows)
         # to receive InputHipimsSub objects for sections
         Sections = []
         section_sequence = np.arange(num_of_sections)
@@ -438,7 +445,8 @@ class InputHipims:
             #get overlayed_id (top two rows and bottom two rows)
             top_h = np.where(valid_cell_subs[0] == 0)
             top_l = np.where(valid_cell_subs[0] == 1)
-            bottom_h = np.where(valid_cell_subs[0] == valid_cell_subs[0].max()-1)
+            bottom_h = np.where(
+                    valid_cell_subs[0] == valid_cell_subs[0].max()-1)
             bottom_l = np.where(valid_cell_subs[0] == valid_cell_subs[0].max())
             if i == 0: # the bottom section
                 overlayed_id = {'top_high':top_h[0], 'top_low':top_l[0]}
@@ -613,7 +621,8 @@ class InputHipims:
 #------------------------------------------------------------------------------
 
     def __write_boundary_conditions(self, field_dir, file_tag='both'):
-        """ Write boundary condition source files
+        """ Write boundary condition source files,if hU is given as flow 
+        timeseries, convert flow to hUx and hUy.
         Private function to call by public function write_boundary_conditions
         file_tag: 'h', 'hU', 'both'
         h_BC_[N].dat, hU_BC_[N].dat
@@ -643,7 +652,8 @@ class InputHipims:
                 cell_subs = obj_boundary.cell_subs[i]
                 if hU_source is not None:
                     file_name = field_dir+'hU_BC_'+str(ind_num)+'.dat'
-                    if hU_source.shape[1] == 2: # flow is given rather than speed
+                    if hU_source.shape[1] == 2: 
+                        # flow is given rather than speed
                         boundary_slope = np.polyfit(cell_subs[0],
                                                     cell_subs[1], 1)
                         theta = np.arctan(boundary_slope[0])
@@ -765,7 +775,7 @@ class Boundary(object):
                 num_cells = self.cell_subs[n][0].size
                 description = self.data_table.description[n] \
                                  + ', number of cells: '+str(num_cells)
-            print(str(n)+'. '+description)
+                print(str(n)+'. '+description)
 
     def get_summary(self):
         """ Get summary information strings
@@ -777,7 +787,7 @@ class Boundary(object):
                 num_cells = self.cell_subs[n][0].size
                 description = self.data_table.description[n] \
                                  + ', number of cells: '+str(num_cells)
-            summary_str.append(str(n)+'. '+description)
+                summary_str.append(str(n)+'. '+description)
         return summary_str
 
     def _fetch_boundary_cells(self, valid_subs, outline_subs, dem_header):
