@@ -157,6 +157,8 @@ class InputHipims:
         cell_id: (list of vector) valid id of cells for each boundary
         """
         # initialize a Boundary object
+        if boundary_list is None and hasattr(self, 'Boundary'):
+            boundary_list = self.Boundary.boundary_list
         bound_obj = Boundary(boundary_list, outline_boundary)
         valid_subs = self._valid_cell_subs
         outline_subs = self._outline_cell_subs
@@ -211,6 +213,7 @@ class InputHipims:
                              'is not consistent with DEM')
         else:
             self.attributes['precipitation_mask'] = rain_mask
+        rain_mask = rain_mask.astype('int32')
         num_of_masks = np.unique(rain_mask).size
         if rain_source.shape[1]-1 != num_of_masks:
             raise ValueError('The column of rain source',
@@ -284,6 +287,19 @@ class InputHipims:
                                                make_dir)
         if hasattr(self, 'Summary'):
             self.Summary.set_param('Case folder', self.case_folder)
+
+    def decomposite_domain(self,num_of_sections):
+        if isinstance(self,InputHipims):
+            self.num_of_sections = num_of_sections
+            self._global_header = self.Raster.header
+            self.__divide_grid()
+            self.set_case_folder() # set data_folders
+            outline_boundary = self.Boundary.outline_boundary
+            self.set_boundary_condition(outline_boundary=outline_boundary)
+            self.Boundary._divide_domain(self)
+            self.birthday = datetime.now()
+        else:
+            raise ValueError('The object cannot be decomposited!')
 
     def write_grid_files(self, file_tag, is_single_gpu=False):
         """Write grid-based files
@@ -462,6 +478,8 @@ class InputHipims:
         # reset global var section_id of InputHipimsSub
         InputHipimsSub.section_id = 0
         self.Sections = Sections
+        self._initialize_summary_obj()# get a Model Summary object
+
     # only for global object
     def _get_vector_value(self, attribute_name, is_multi_gpu=True,
                           add_initial_water=True):
@@ -664,7 +682,7 @@ class InputHipims:
                         hU_source = np.c_[hU_source[:, 0], hUx, hUy]
                         print('Flow series on boundary '+str(i)+
                               ' is converted to velocities')
-                        print('Theta = '+'{:.3f}'.format(theta/np.pi)+'pi')
+                        print('Theta = '+'{:.3f}'.format(theta/np.pi)+'*pi')
                     np.savetxt(file_name, hU_source, fmt=fmt_hu, delimiter=' ')
                     ind_num = ind_num+1
                     file_names_list.append(file_name)
@@ -842,8 +860,8 @@ class Boundary(object):
         """ Create Boundary objects for each sub-domain
         IF hipims_obj has sub sections
         """
-        boundary_list = self.boundary_list
-        outline_boundary = self.outline_boundary
+        boundary_list = hipims_obj.Boundary.boundary_list
+        outline_boundary = hipims_obj.Boundary.outline_boundary
         header_global = hipims_obj._global_header
         outline_subs = hipims_obj._outline_cell_subs
         for i in range(hipims_obj.num_of_sections):
@@ -857,6 +875,9 @@ class Boundary(object):
             bound_obj._fetch_boundary_cells(
                 valid_subs_local, outline_subs_local, header_local)
             obj_section.Boundary = bound_obj
+            summary_str = bound_obj.get_summary()
+            obj_section.Summary.add_items('Boundary conditions', summary_str)
+
 
 #===================================Static method==============================
 def _cell_subs_convertor(input_cell_subs, header_global,
@@ -1154,17 +1175,22 @@ def _check_rainfall_rate_values(rain_source, times_in_1st_col=True):
     # get the pure rainfall rate values
     if times_in_1st_col:
         rain_values = rain_source[:, 1:]
+        time_series = rain_source[:, 0]
     else:
         rain_values = rain_source
+        time_series = np.arange(rain_values.shape[0])
     # convert the unit of rain rate values from m/s to mm/h
-    rain_values = rain_values*3600*1000
-    values_max = rain_values.max()
-    values_mean = rain_values.mean()
-    if values_max > 100 or values_mean > 50:
+    rain_values_mmh = rain_values*3600*1000
+    values_max = rain_values_mmh.max()
+    values_mean = rain_values.mean(axis=1)
+    rain_total_amount = np.trapz(y=values_mean,x=time_series) # in meter
+    duration = np.ptp(time_series)
+    rain_rate_mean = rain_total_amount*1000/(duration/3600) #mm/h
+    if values_max > 100 or rain_rate_mean > 50:
         warnings.warn('Very large rainfall rates, better check your data!')
         print('Max rain: {:.2f} mm/h, Average rain: {:.2f} mm/h'.\
-              format(values_max, values_mean))
-    return values_max, values_mean
+              format(values_max, rain_rate_mean))
+    return values_max, rain_rate_mean
 
 #%% ***************************************************************************
 # *************************Public functions************************************
@@ -1330,6 +1356,8 @@ class ModelSummary:
                 item_value = ' Wet cells ratio: {:.2f}%'.format(
                     num_wet_cells_rate*100)
             elif param_name == 'precipitation_mask':
+                if param_value.dtype != 'int32':
+                    param_value = param_value.astype('int32')
                 item_value = '{:d} rainfall sources'.format(
                     param_value.max()+1)
             elif param_name == 'precipitation_source':
