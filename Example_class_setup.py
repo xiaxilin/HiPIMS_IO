@@ -36,13 +36,13 @@ HP_obj = hp.InputHipims(dem_data=dem_data,
                         case_folder=case_folder)
 # define initial condition
 h0 = HP_obj.Raster.array+0
-h0[np.isnan(h0)] = 9999
-h0[h0 >= 50] = 1
+h0[np.isnan(h0)] = 0
 h0[h0 < 50] = 0
-# set initial water depth h0, hU0x, hU0y
+h0[h0 >= 50] = 1
+# set initial water depth (h0) and velocity (hU0x, hU0y)
 HP_obj.set_parameter('h0', h0)
-HP_obj.set_parameter('hU0x', 0)
-HP_obj.set_parameter('hU0y', 0)
+HP_obj.set_parameter('hU0x', h0*0.0001)
+HP_obj.set_parameter('hU0y', h0*0.0002)
 
 # define boundary condition
 bound1_points = np.array([[535, 206], [545, 206], [545, 210], [535, 210]])*1000

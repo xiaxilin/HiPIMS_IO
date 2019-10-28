@@ -162,10 +162,10 @@ class InputHipims:
         bound_obj = Boundary(boundary_list, outline_boundary)
         valid_subs = self._valid_cell_subs
         outline_subs = self._outline_cell_subs
-        if not isinstance(self,InputHipimsSub):
+        if not isinstance(self, InputHipimsSub):
             dem_header = self._global_header
-        # add the subsripts and id of boundary cells on the domain grid        
-            bound_obj._fetch_boundary_cells(valid_subs, 
+        # add the subsripts and id of boundary cells on the domain grid
+            bound_obj._fetch_boundary_cells(valid_subs,
                                             outline_subs, dem_header)
         self.Boundary = bound_obj
         if hasattr(self, 'Sections'):
@@ -255,7 +255,7 @@ class InputHipims:
                                                make_dir)
         if hasattr(self, 'Summary'):
             self.Summary.set_param('Case folder', self.case_folder)
-    
+
     def add_user_defined_parameter(self, param_name, param_value):
         """ Add a grid-based user-defined parameter to the model
         param_name: (str) name the parameter and the input file name as well
@@ -268,8 +268,8 @@ class InputHipims:
         self.Summary.add_param_infor(param_name, param_value)
 
 
-    def decomposite_domain(self,num_of_sections):
-        if isinstance(self,InputHipims):
+    def decomposite_domain(self, num_of_sections):
+        if isinstance(self, InputHipims):
             self.num_of_sections = num_of_sections
             self._global_header = self.Raster.header
             self.__divide_grid()
@@ -330,7 +330,7 @@ class InputHipims:
             self._write_grid_files(file_tag, is_multi_gpu=False)
         else:
             self._write_grid_files(file_tag, is_multi_gpu=True)
-        self.Summary.write_readme()
+        self.Summary.write_readme(self.case_folder+'/readme.txt')
 
     def write_boundary_conditions(self):
         """ Write boundary condtion files
@@ -345,7 +345,7 @@ class InputHipims:
         else:  # single-GPU
             field_dir = self.data_folders['field']
             _ = self.__write_boundary_conditions(field_dir)
-        self.Summary.write_readme()
+        self.Summary.write_readme(self.case_folder+'/readme.txt')
 
     def write_rainfall_source(self):
         """Write rainfall source data
@@ -356,7 +356,7 @@ class InputHipims:
         case_folder = self.case_folder
         num_of_sections = self.num_of_sections
         write_rain_source(rain_source, case_folder, num_of_sections)
-        self.Summary.write_readme()
+        self.Summary.write_readme(self.case_folder+'/readme.txt')
 
     def write_gauges_position(self, gauges_pos=None):
         """ Write the gauges position file
@@ -372,7 +372,7 @@ class InputHipims:
         else:  # single-GPU
             field_dir = self.data_folders['field']
             _ = self.__write_gauge_pos(field_dir)
-        self.Summary.write_readme()
+        self.Summary.write_readme(self.case_folder+'/readme.txt')
 
     def write_halo_file(self):
         """ Write overlayed cell IDs
@@ -393,7 +393,7 @@ class InputHipims:
                     if key in overlayed_id.keys():
                         line_ids = overlayed_id[key]
                         line_ids = np.reshape(line_ids, (1, line_ids.size))
-                        np.savetxt(file2write, 
+                        np.savetxt(file2write,
                                    line_ids, fmt='%d', delimiter=' ')
                     else:
                         file2write.write(' \n')
@@ -410,7 +410,7 @@ class InputHipims:
             for obj_section in self.Sections:
                 file_name = obj_section.data_folders['mesh']+'DEM.txt'
                 obj_section.Raster.Write_asc(file_name)
-        self.Summary.write_readme()
+        self.Summary.write_readme(self.case_folder+'/readme.txt')
 
     def save_object(self, file_name):
         """ Save object as a pickle file
@@ -482,7 +482,7 @@ class InputHipims:
             top_h = np.where(valid_cell_subs[0] == 0)
             top_l = np.where(valid_cell_subs[0] == 1)
             bottom_h = np.where(
-                    valid_cell_subs[0] == valid_cell_subs[0].max()-1)
+                valid_cell_subs[0] == valid_cell_subs[0].max()-1)
             bottom_l = np.where(valid_cell_subs[0] == valid_cell_subs[0].max())
             if i == 0: # the bottom section
                 overlayed_id = {'top_high':top_h[0], 'top_low':top_l[0]}
@@ -659,7 +659,7 @@ class InputHipims:
 #------------------------------------------------------------------------------
 
     def __write_boundary_conditions(self, field_dir, file_tag='both'):
-        """ Write boundary condition source files,if hU is given as flow 
+        """ Write boundary condition source files,if hU is given as flow
         timeseries, convert flow to hUx and hUy.
         Private function to call by public function write_boundary_conditions
         file_tag: 'h', 'hU', 'both'
@@ -690,7 +690,7 @@ class InputHipims:
                 cell_subs = obj_boundary.cell_subs[i]
                 if hU_source is not None:
                     file_name = field_dir+'hU_BC_'+str(ind_num)+'.dat'
-                    if hU_source.shape[1] == 2: 
+                    if hU_source.shape[1] == 2:
                         # flow is given rather than speed
                         boundary_slope = np.polyfit(cell_subs[0],
                                                     cell_subs[1], 1)
@@ -1203,7 +1203,7 @@ def _check_rainfall_rate_values(rain_source, times_in_1st_col=True):
     rain_values_mmh = rain_values*3600*1000
     values_max = rain_values_mmh.max()
     values_mean = rain_values.mean(axis=1)
-    rain_total_amount = np.trapz(y=values_mean,x=time_series) # in meter
+    rain_total_amount = np.trapz(y=values_mean, x=time_series) # in meter
     duration = np.ptp(time_series)
     rain_rate_mean = rain_total_amount*1000/(duration/3600) #mm/h
     if values_max > 100 or rain_rate_mean > 50:
@@ -1370,7 +1370,7 @@ class ModelSummary:
         if param_value.size == 1:
             item_value = ' {:} for all cells'.format(param_value)
         else:
-            if param_name in ['h0', 'hU0']:
+            if param_name in ['h0', 'hU0x', 'hU0y']:
                 num_wet_cells = np.sum(param_value > 0)
                 num_wet_cells_rate = num_wet_cells/param_value.size
                 item_value = ' Wet cells ratio: {:.2f}%'.format(
