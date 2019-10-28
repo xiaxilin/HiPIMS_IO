@@ -21,8 +21,10 @@ case_folder='/Users/ming/Dropbox/Python/CaseP'
 demFile = 'ExampleDEM.asc'
 #demMat,demHead,demExtent = AP.arcgridread('ExampleDEM.asc') # stored in the same dir with HiPIMS_IO.py
 
-HP_obj = hp.InputHipims(dem_file=demFile, num_of_sections=1,
+HP_obj = hp.InputHipims(dem_file=demFile, num_of_sections=3,
                         case_folder=case_folder)
+#HP_obj
+#HP_obj.Sections[1]
 #%% define boundary condition
 bound1Points = np.array([[535, 206], [545, 206], [545, 210], [535, 210]])*1000
 bound2Points = np.array([[520, 230], [530, 230], [530, 235], [520, 235]])*1000
@@ -32,6 +34,7 @@ dBound2 = {'polyPoints': bound2Points,'type': 'open','hU': [[0,50000],[60,30000]
 boundList = [dBound1,dBound2]
 del dBound1,dBound2,bound1Points,bound2Points
 HP_obj.set_boundary_condition(boundList)
+#%%
 dem_array = HP_obj.Raster.array+0
 dem_array[np.isnan(dem_array)]=500
 h0 = dem_array*0
