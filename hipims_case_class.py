@@ -235,6 +235,52 @@ class InputHipims:
         self.attributes['gauges_pos'] = gauges_pos
         self.Summary.add_param_infor('gauges_pos', gauges_pos)
 
+    def set_case_folder(self, new_folder=None, make_dir=False):
+        """ Initialize, renew, or create case and data folders
+        new_folder: (str) renew case and data folder if it is given
+        make_dir: True|False create folders if it is True
+        """
+        # to change case_folder
+        if new_folder is not None:
+            if new_folder.endswith('/'):
+                new_folder = new_folder[:-1]
+            self.case_folder = new_folder
+            # for multiple GPUs
+            if hasattr(self, 'Sections'):
+                for obj in self.Sections:
+                    sub_case_folder = new_folder+'/'+str(obj.section_id)
+                    obj.set_case_folder(sub_case_folder)
+        # for single gpu
+        self.data_folders = _create_io_folders(self.case_folder,
+                                               make_dir)
+        if hasattr(self, 'Summary'):
+            self.Summary.set_param('Case folder', self.case_folder)
+    
+    def add_user_defined_parameter(self, param_name, param_value):
+        """ Add a grid-based user-defined parameter to the model
+        param_name: (str) name the parameter and the input file name as well
+        param_value: (scalar) or (numpy arary) with the same size of DEM array
+        """
+        if param_name not in InputHipims.grid_files:
+            InputHipims.grid_files.append(param_name)
+        self.attributes[param_name] = param_value
+        print(param_name+ 'is added to the InputHipims object')
+        self.Summary.add_param_infor(param_name, param_value)
+
+
+    def decomposite_domain(self,num_of_sections):
+        if isinstance(self,InputHipims):
+            self.num_of_sections = num_of_sections
+            self._global_header = self.Raster.header
+            self.__divide_grid()
+            self.set_case_folder() # set data_folders
+            outline_boundary = self.Boundary.outline_boundary
+            self.set_boundary_condition(outline_boundary=outline_boundary)
+            self.Boundary._divide_domain(self)
+            self.birthday = datetime.now()
+        else:
+            raise ValueError('The object cannot be decomposited!')
+
     def write_input_files(self, file_tag=None):
         """ Write input files
         To classify the input files and call functions needed to write each
@@ -270,40 +316,6 @@ class InputHipims:
             else:
                 raise ValueError('file_tag is not recognized')
 
-    def set_case_folder(self, new_folder=None, make_dir=False):
-        """ Initialize, renew, or create case and data folders
-        new_folder: (str) renew case and data folder if it is given
-        make_dir: True|False create folders if it is True
-        """
-        # to change case_folder
-        if new_folder is not None:
-            if new_folder.endswith('/'):
-                new_folder = new_folder[:-1]
-            self.case_folder = new_folder
-            # for multiple GPUs
-            if hasattr(self, 'Sections'):
-                for obj in self.Sections:
-                    sub_case_folder = new_folder+'/'+str(obj.section_id)
-                    obj.set_case_folder(sub_case_folder)
-        # for single gpu
-        self.data_folders = _create_io_folders(self.case_folder,
-                                               make_dir)
-        if hasattr(self, 'Summary'):
-            self.Summary.set_param('Case folder', self.case_folder)
-
-    def decomposite_domain(self,num_of_sections):
-        if isinstance(self,InputHipims):
-            self.num_of_sections = num_of_sections
-            self._global_header = self.Raster.header
-            self.__divide_grid()
-            self.set_case_folder() # set data_folders
-            outline_boundary = self.Boundary.outline_boundary
-            self.set_boundary_condition(outline_boundary=outline_boundary)
-            self.Boundary._divide_domain(self)
-            self.birthday = datetime.now()
-        else:
-            raise ValueError('The object cannot be decomposited!')
-
     def write_grid_files(self, file_tag, is_single_gpu=False):
         """Write grid-based files
         Public version for both single and multiple GPUs
@@ -318,6 +330,7 @@ class InputHipims:
             self._write_grid_files(file_tag, is_multi_gpu=False)
         else:
             self._write_grid_files(file_tag, is_multi_gpu=True)
+        self.Summary.write_readme()
 
     def write_boundary_conditions(self):
         """ Write boundary condtion files
@@ -332,6 +345,7 @@ class InputHipims:
         else:  # single-GPU
             field_dir = self.data_folders['field']
             _ = self.__write_boundary_conditions(field_dir)
+        self.Summary.write_readme()
 
     def write_rainfall_source(self):
         """Write rainfall source data
@@ -342,6 +356,7 @@ class InputHipims:
         case_folder = self.case_folder
         num_of_sections = self.num_of_sections
         write_rain_source(rain_source, case_folder, num_of_sections)
+        self.Summary.write_readme()
 
     def write_gauges_position(self, gauges_pos=None):
         """ Write the gauges position file
@@ -357,6 +372,7 @@ class InputHipims:
         else:  # single-GPU
             field_dir = self.data_folders['field']
             _ = self.__write_gauge_pos(field_dir)
+        self.Summary.write_readme()
 
     def write_halo_file(self):
         """ Write overlayed cell IDs
@@ -394,6 +410,7 @@ class InputHipims:
             for obj_section in self.Sections:
                 file_name = obj_section.data_folders['mesh']+'DEM.txt'
                 obj_section.Raster.Write_asc(file_name)
+        self.Summary.write_readme()
 
     def save_object(self, file_name):
         """ Save object as a pickle file
@@ -1285,13 +1302,13 @@ class ModelSummary:
     #%======================== initialization function ========================
     def __init__(self, hipims_obj):
         num_valid_cells = hipims_obj._valid_cell_subs[0].size
-        case_folder = hipims_obj.case_folder
+        self.__case_folder = hipims_obj.case_folder
         num_of_sections = hipims_obj.num_of_sections
         dem_header = hipims_obj.Raster.header
         self.domain_area = num_valid_cells*(dem_header['cellsize']**2)
         self.information_dict = {
             '*******************':'Model summary***************',
-            'Case folder':case_folder,
+            'Case folder':self.__case_folder,
             'Number of Sections':str(num_of_sections),
             'Grid size':'{:d} rows * {:d} cols, {:.2f}m resolution'.format(
                 dem_header['nrows'], dem_header['ncols'],

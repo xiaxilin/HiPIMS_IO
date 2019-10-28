@@ -37,8 +37,8 @@ HP_obj = hp.InputHipims(dem_data=dem_data,
 # define initial condition
 h0 = HP_obj.Raster.array+0
 h0[np.isnan(h0)] = 9999
-h0[h0 < 50] = 1
-h0[h0 < 0] = 0
+h0[h0 >= 50] = 1
+h0[h0 < 50] = 0
 # set initial water depth h0, hU0x, hU0y
 HP_obj.set_parameter('h0', h0)
 HP_obj.set_parameter('hU0x', 0)
@@ -70,6 +70,8 @@ HP_obj.set_rainfall(rain_mask=rain_mask, rain_source=rain_source)
 gauges_pos = np.array([[534.5, 231.3], [510.2, 224.5], [542.5, 225.0],
                        [538.2, 212.5], [530.3, 219.4]])*1000
 HP_obj.set_gauges_position(gauges_pos)
+# add a user-defined parameter
+HP_obj.add_user_defined_parameter('new_param',0)
 # write all input files
 HP_obj.write_input_files() # write all input files
 # show model summary
