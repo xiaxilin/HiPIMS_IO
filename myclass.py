@@ -3,7 +3,7 @@
 """
 Created on Sat Apr  6 13:03:25 2019
 
-@author: b4042552
+@author: Xiaodong Ming
 """
 import os
 import numpy as np
@@ -12,10 +12,9 @@ import matplotlib.pyplot as plt
 import copy
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-
 #%% *******************************To deal with raster data********************
 #   ***************************************************************************    
-class raster(object):
+class Raster(object):
     """
     Created on Tue Apr 7 2019
     @author: Xiaodong Ming 
@@ -48,8 +47,6 @@ class raster(object):
         __sub2map
         __read_asc
         __read_tif
-        
-        
         
     """
 #    __slots__ = ('sourceFile', 'outputFile',
@@ -255,7 +252,7 @@ class raster(object):
 #%%=============================Visualization==================================
     #%% draw inundation map with domain outline
     def Mapshow(self,figureName=None,figsize=None,dpi=300,vmin=None,vmax=None,
-                cax=True):
+                cax=True,dem_array=None):
         """
         Display raster data without projection
         figureName: the file name to export map,if figureName is empty, then
@@ -266,8 +263,11 @@ class raster(object):
         """
         np.warnings.filterwarnings('ignore')    
         fig, ax = plt.subplots(1, figsize=figsize)
-        # draw inundation
-        zMat = self.array
+        # draw grid data
+        if dem_array is not None:
+            zMat = dem_array
+        else:
+            zMat = self.array
 #        zMat[zMat==self.header['NODATA_value']]=np.nan
         img=plt.imshow(zMat,extent=self.extent,vmin=vmin,vmax=vmax)
         # colorbar
@@ -459,7 +459,7 @@ class raster(object):
         header = {'xllcorner':xllcorner,'yllcorner':yllcorner,
                   'nrows':nrows, 'ncols':ncols,
                   'cellsize':cellsize, 'NODATA_value':NODATA_value}
-        newObj = raster(array=array,header=header,projection=projection)
+        newObj = Raster(array=array,header=header,projection=projection)
         return newObj
         
     def __header2extent(self):
