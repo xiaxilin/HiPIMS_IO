@@ -21,7 +21,7 @@ case_folder='/Users/ming/Dropbox/Python/CaseP'
 demFile = 'ExampleDEM.asc'
 #demMat,demHead,demExtent = AP.arcgridread('ExampleDEM.asc') # stored in the same dir with HiPIMS_IO.py
 
-HP_obj = hp.InputHipims(dem_file=demFile, num_of_sections=3,
+HP_obj = hp.InputHipims(dem_data=demFile, num_of_sections=3,
                         case_folder=case_folder)
 #HP_obj
 #HP_obj.Sections[1]
