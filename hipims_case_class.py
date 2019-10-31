@@ -214,7 +214,7 @@ class InputHipims:
         else:
             self.attributes['precipitation_mask'] = rain_mask
         rain_mask = rain_mask.astype('int32')
-        num_of_masks = np.unique(rain_mask).size
+        num_of_masks = rain_mask.max()+1 # starting from 0
         if rain_source.shape[1]-1 != num_of_masks:
             raise ValueError('The column of rain source',
                              'is not consistent with the number of rain masks')
@@ -344,7 +344,7 @@ class InputHipims:
             self.__copy_to_all_sections(file_names_list)
         else:  # single-GPU
             field_dir = self.data_folders['field']
-            _ = self.__write_boundary_conditions(field_dir)
+            self.__write_boundary_conditions(field_dir)
         self.Summary.write_readme(self.case_folder+'/readme.txt')
 
     def write_rainfall_source(self):
@@ -371,7 +371,7 @@ class InputHipims:
             self.__copy_to_all_sections(file_name)
         else:  # single-GPU
             field_dir = self.data_folders['field']
-            _ = self.__write_gauge_pos(field_dir)
+            self.__write_gauge_pos(field_dir)
         self.Summary.write_readme(self.case_folder+'/readme.txt')
 
     def write_halo_file(self):
