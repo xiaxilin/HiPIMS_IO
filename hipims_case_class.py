@@ -107,6 +107,7 @@ class InputHipims:
         self.case_folder = case_folder
         self.num_of_sections = num_of_sections
         self.attributes = InputHipims.attributes_default.copy()
+        self.times = None
         # get row and col index of all cells on DEM grid
         self._get_cell_subs()  # add _valid_cell_subs and _outline_cell_subs
         # divide model domain to several sections if it is not a sub section
@@ -216,13 +217,23 @@ class InputHipims:
         rain_mask = rain_mask.astype('int32')
         num_of_masks = rain_mask.max()+1 # starting from 0
         if rain_source.shape[1]-1 != num_of_masks:
-            raise ValueError('The column of rain source',
-                             'is not consistent with the number of rain masks')
+            warning_str= 'The column of rain source '+\
+                         'is not consistent with the number of rain masks'
+            warnings.warn(warning_str)
         _check_rainfall_rate_values(rain_source, times_in_1st_col=True)
         self.Summary.add_param_infor('precipitation_mask', rain_mask)
         if rain_source is not None:
             self.attributes['precipitation_source'] = rain_source
-            self.Summary.add_param_infor('precipitation_source', rain_source)
+            rain_mask_unique = np.unique(rain_mask).flatten()
+            rain_mask_unique = rain_mask_unique.astype('int32')
+            rain_source_valid = np.c_[rain_source[:,0],
+                                      rain_source[:,rain_mask_unique+1]]
+            self.Summary.add_param_infor('precipitation_source', 
+                                         rain_source_valid)
+            if self.times is None:
+                time_seires = rain_source[:,0]
+                self.times = [time_seires.min(), time_seires.max(),
+                              np.ptp(time_seires), np.ptp(time_seires)] 
         # renew summary information
 
     def set_gauges_position(self, gauges_pos):
@@ -302,7 +313,8 @@ class InputHipims:
             if self.num_of_sections > 1:
                 self.write_halo_file()
             self.write_mesh_file(self)
-            write_times_setup(self.case_folder, self.num_of_sections)
+            write_times_setup(self.case_folder, 
+                              self.num_of_sections, self.times)
             write_device_setup(self.case_folder, self.num_of_sections)
         elif file_tag == 'boundary_condition':
             self.write_boundary_conditions()
@@ -1390,8 +1402,11 @@ class ModelSummary:
             else:
                 item_numbers, item_number_counts = \
                     np.unique(param_value, return_counts=True)
-                item_value = ' Values{:}, ratio{:}'.format(
-                    item_numbers, item_number_counts/param_value.size)
+                ratio = item_number_counts*100/param_value.size
+                formatter = {'float_kind':lambda ratio: "%.3f" % ratio}
+                ratio_str = np.array2string(ratio, formatter=formatter)+'%'
+                Values_str = ' Values{:}, Ratios'.format(item_numbers)
+                item_value = Values_str+ratio_str
         self.information_dict[item_name] = item_value
 
     def save_object(self, file_name):
