@@ -29,6 +29,7 @@ from datetime import datetime
 import scipy.signal  # to call scipy.signal.convolve2d to get outline boundary
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 import matplotlib.patches as mplP
 import myclass  # to call class Raster
 #%% grid data for HiPIMS input format
@@ -245,6 +246,18 @@ class InputHipims:
             raise ValueError('The gauges_pos arraymust have two columns')
         self.attributes['gauges_pos'] = gauges_pos
         self.Summary.add_param_infor('gauges_pos', gauges_pos)
+        # for multi_GPU, divide gauges based on the extent of each section
+        if self.num_of_sections > 1:
+            pos_X = gauges_pos[:,0]
+            pos_Y = gauges_pos[:,1]
+            for obj_section in self.Sections:
+                extent = obj_section.Raster.extent
+                ind_x = np.logical_and(pos_X >= extent[0], pos_X <= extent[1])
+                ind_y = np.logical_and(pos_Y >= extent[2], pos_Y <= extent[3])
+                ind = np.where(np.logical_and(ind_x, ind_y))
+                ind = ind[0]
+                obj_section.attributes['gauges_pos'] = gauges_pos[ind,:]
+                obj_section.attributes['gauges_ind'] = ind
 
     def set_case_folder(self, new_folder=None, make_dir=False):
         """ Initialize, renew, or create case and data folders
@@ -277,7 +290,6 @@ class InputHipims:
         self.attributes[param_name] = param_value
         print(param_name+ 'is added to the InputHipims object')
         self.Summary.add_param_infor(param_name, param_value)
-
 
     def decomposite_domain(self, num_of_sections):
         if isinstance(self, InputHipims):
@@ -343,6 +355,7 @@ class InputHipims:
         else:
             self._write_grid_files(file_tag, is_multi_gpu=True)
         self.Summary.write_readme(self.case_folder+'/readme.txt')
+        print(file_tag+' created')
 
     def write_boundary_conditions(self):
         """ Write boundary condtion files
@@ -358,6 +371,7 @@ class InputHipims:
             field_dir = self.data_folders['field']
             self.__write_boundary_conditions(field_dir)
         self.Summary.write_readme(self.case_folder+'/readme.txt')
+        print('boundary condition files created')
 
     def write_rainfall_source(self):
         """Write rainfall source data
@@ -376,15 +390,17 @@ class InputHipims:
         """
         self._make_data_dirs()
         if gauges_pos is not None:
-            self.gauges_pos = np.array(gauges_pos)
+            self.set_gauges_position(np.array(gauges_pos))
         if self.num_of_sections > 1:  # multiple-GPU
-            field_dir = self.Sections[0].data_folders['field']
-            file_name = self.__write_gauge_pos(field_dir)
-            self.__copy_to_all_sections(file_name)
+            for obj_section in self.Sections:
+                field_dir = obj_section.data_folders['field']
+                obj_section.__write_gauge_ind(field_dir)
+                obj_section.__write_gauge_pos(field_dir)
         else:  # single-GPU
             field_dir = self.data_folders['field']
             self.__write_gauge_pos(field_dir)
         self.Summary.write_readme(self.case_folder+'/readme.txt')
+        print('gauges_pos.dat created')
 
     def write_halo_file(self):
         """ Write overlayed cell IDs
@@ -409,6 +425,7 @@ class InputHipims:
                                    line_ids, fmt='%d', delimiter=' ')
                     else:
                         file2write.write(' \n')
+        print('halo.dat created')
 
     def write_mesh_file(self, is_single_gpu=False):
         """ Write mesh file DEM.txt, compatoble for both single and multiple
@@ -431,6 +448,51 @@ class InputHipims:
             file_name = file_name+'.pickle'
         with open(file_name, 'wb') as output:  # Overwrites any existing file.
             pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
+#------------------------------------------------------------------------------
+#******************************* Visualization ********************************
+#------------------------------------------------------------------------------
+    def plot_rainfall_source(self,start_date=None, method='mean'):
+        """ Plot time series of average rainfall rate inside the model domain
+        start_date: a datetime object to give the initial date and time of rain
+        method: 'mean'|'max','min','mean'method to calculate gridded rainfall over the model domain
+            
+        """        
+        rain_source = self.attributes['precipitation_source']
+        rain_mask = self.attributes['precipitation_mask']
+        if type(rain_mask) is np.ndarray:
+            rain_mask = rain_mask[~np.isnan(self.Raster.array)]
+        rain_mask = rain_mask.astype('int32')
+        rain_mask_unique = np.unique(rain_mask).flatten()
+        rain_mask_unique = rain_mask_unique.astype('int32')
+        
+        rain_source_valid = rain_source[:,rain_mask_unique+1]
+        time_series = rain_source[:,0]
+        if type(start_date) is datetime:
+            from datetime import timedelta
+            time_delta = np.array([timedelta(seconds=i) for i in time_series])
+            time_x = start_date+time_delta
+        else:
+            time_x = time_series
+        if method == 'mean':
+            value_y = np.mean(rain_source_valid,axis=1)
+        elif method== 'max':
+            value_y = np.max(rain_source_valid,axis=1)
+        elif method== 'min':
+            value_y = np.min(rain_source_valid,axis=1)
+        elif method== 'median':
+            value_y = np.median(rain_source_valid,axis=1)
+        else:
+            raise ValueError('Cannot recognise the calculation method')
+        value_y =  value_y*3600*1000
+        plot_data = np.c_[time_x,value_y]
+        fig, ax = plt.subplots()
+        ax.plot(time_x,value_y)
+        ax.set_ylabel('Rainfall rate (mm/h)')
+        ax.grid(True)
+        plt.show()
+        return plot_data
+        
+        
 #------------------------------------------------------------------------------
 #*************************** Protected methods ********************************
 #------------------------------------------------------------------------------
@@ -728,14 +790,28 @@ class InputHipims:
         gauges_pos: 2-col numpy array of X and Y coordinates
         """
         gauges_pos = self.attributes['gauges_pos']
-        if type(gauges_pos) == list:
-            gauges_pos = np.array(gauges_pos, ndmin=2)
         file_name = file_folder+'gauges_pos.dat'
         fmt = ['%g %g']
         fmt = '\n'.join(fmt*gauges_pos.shape[0])
         gauges_pos_str = fmt % tuple(gauges_pos.ravel())
         with open(file_name, 'w') as file2write:
             file2write.write(gauges_pos_str)
+        return file_name
+
+    def __write_gauge_ind(self, file_folder):
+        """write monitoring gauges index for mult-GPU sections
+        Private function of write_gauge_position
+        gauges_ind.dat
+        file_folder: folder to write file
+        gauges_ind: 1-col numpy array of index values
+        """
+        gauges_ind = self.attributes['gauges_ind']
+        file_name = file_folder+'gauges_ind.dat'
+        fmt = ['%g']
+        fmt = '\n'.join(fmt*gauges_ind.shape[0])
+        gauges_ind_str = fmt % tuple(gauges_ind.ravel())
+        with open(file_name, 'w') as file2write:
+            file2write.write(gauges_ind_str)
         return file_name
 
     def __copy_to_all_sections(self, file_names):
@@ -1032,10 +1108,13 @@ def _get_split_rows(input_array, num_of_sections):
     valid_cells_count = np.sum(valid_cells, axis=1)
     valid_cells_count = np.cumsum(valid_cells_count)
     split_rows = []  # subscripts of the split row [0, 1,...]
-    for i in np.arange(num_of_sections): # from bottom to top
-        num_section_cells = valid_cells_count[-1]*(i+1)/num_of_sections
-        split_row = np.sum(valid_cells_count-num_section_cells > 0)
+    total_valid_cells = valid_cells_count[-1]
+    for i in np.arange(num_of_sections-1): 
+        num_section_cells = total_valid_cells*(i+1)/num_of_sections
+        split_row = np.sum(valid_cells_count<=num_section_cells)-1
         split_rows.append(split_row)
+    # sort from bottom to top
+    split_rows.sort(reverse=True)
     return split_rows
 
 def _split_array_by_rows(input_array, header, split_rows, overlayed_rows=2):
@@ -1051,7 +1130,7 @@ def _split_array_by_rows(input_array, header, split_rows, overlayed_rows=2):
     overlayed_rows = 2
     array_local = []
     header_local = []
-    section_sequence = np.arange(len(split_rows))
+    section_sequence = np.arange(len(split_rows)+1)
     for i in section_sequence:  # from bottom to top
         section_id = i
         if section_id == section_sequence.max(): # the top section
@@ -1245,6 +1324,7 @@ def write_times_setup(case_folder=None, num_of_sections=1, time_values=None):
         np.savetxt(case_folder+'/input/times_setup.dat', time_values, fmt='%g')
     else:
         np.savetxt(case_folder+'/times_setup.dat', time_values, fmt='%g')
+    print('times_setup.dat created')
 
 def write_device_setup(case_folder=None,
                        num_of_sections=1, device_values=None):
@@ -1266,6 +1346,7 @@ def write_device_setup(case_folder=None,
                    device_values, fmt='%g')
     else:
         np.savetxt(case_folder+'/device_setup.dat', device_values, fmt='%g')
+    print('device_setup.dat created')
 
 def write_rain_source(rain_source, case_folder=None, num_of_sections=1):
     """ Write rainfall sources
@@ -1298,6 +1379,7 @@ def write_rain_source(rain_source, case_folder=None, num_of_sections=1):
         for i in np.arange(1, num_of_sections):
             field_dir = case_folder+str(i)+'/input/field/'
             shutil.copy2(file_name, field_dir)
+    print('precipitation_source_all.dat created')
 
 #%% model information summary
 class ModelSummary:
