@@ -237,9 +237,11 @@ class InputHipims:
                               np.ptp(time_seires), np.ptp(time_seires)] 
         # renew summary information
 
-    def set_gauges_position(self, gauges_pos):
+    def set_gauges_position(self, gauges_pos=None):
         """Set coordinates of monitoring gauges
         """
+        if gauges_pos is None:
+            gauges_pos = self.attributes['gauges_pos']
         if type(gauges_pos) is list:
             gauges_pos = np.array(gauges_pos)
         if gauges_pos.shape[1] != 2:
@@ -299,6 +301,7 @@ class InputHipims:
             self.set_case_folder() # set data_folders
             outline_boundary = self.Boundary.outline_boundary
             self.set_boundary_condition(outline_boundary=outline_boundary)
+            self.set_gauges_position()
             self.Boundary._divide_domain(self)
             self.birthday = datetime.now()
         else:
@@ -440,6 +443,7 @@ class InputHipims:
                 file_name = obj_section.data_folders['mesh']+'DEM.txt'
                 obj_section.Raster.Write_asc(file_name)
         self.Summary.write_readme(self.case_folder+'/readme.txt')
+        print('DEM.txt created')
 
     def save_object(self, file_name):
         """ Save object as a pickle file
@@ -454,7 +458,8 @@ class InputHipims:
     def plot_rainfall_source(self,start_date=None, method='mean'):
         """ Plot time series of average rainfall rate inside the model domain
         start_date: a datetime object to give the initial date and time of rain
-        method: 'mean'|'max','min','mean'method to calculate gridded rainfall over the model domain
+        method: 'mean'|'max','min','mean'method to calculate gridded rainfall 
+        over the model domain
             
         """        
         rain_source = self.attributes['precipitation_source']
