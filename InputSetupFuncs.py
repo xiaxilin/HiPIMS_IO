@@ -72,7 +72,7 @@ def Get_ID_BNoutline_Mat(demMat):
 def BoundaryClassify(bnMat_outline,demHead,boundList=[]):
     #bnMat = BoundaryClassify(bnMat_outline,demHead,boundList)
     #%get rows and columns of outline bound cells
-    # bnMat: nan: invalida cell; -2: non-bound cell; 0: outline cell;
+    # bnMat: nan: invalid cell; -2: non-bound cell; 0: outline cell;
     #               1,~: user-defined IO bound cell on the outline
     bnMat = bnMat_outline
     R = demHead
@@ -124,7 +124,7 @@ def Get3ElementBoundCode(boundList):
         if dBound['type']=='rigid':
             hUCode[n,1] = 2 #[2 2 0]
         elif dBound['type']=='open':
-            hUCode[n,1] = 1
+            hUCode[n,1] = 1 # [2 1 0]
             if 'h' in dBound:
                 hCode[n,:] = [3,0,m_h] #[3 0 m]
                 m_h=m_h+1

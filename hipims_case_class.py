@@ -25,13 +25,14 @@ import sys
 import warnings
 import shutil
 import pickle
-from datetime import datetime
+import gzip
 import scipy.signal  # to call scipy.signal.convolve2d to get outline boundary
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as mplP
 import myclass  # to call class Raster
+from datetime import datetime
 #%% grid data for HiPIMS input format
 class InputHipims:
     """To define input files for a HiPIMS flood model case
@@ -130,7 +131,7 @@ class InputHipims:
         self.Summary.display()
         time_str = self.birthday.strftime('%Y-%m-%d %H:%M:%S')
         return  self.__class__.__name__+' object created on '+ time_str
-    __repr__ = __str__
+#    __repr__ = __str__
 #******************************************************************************
 #************************Setup the object**************************************
     def set_boundary_condition(self, boundary_list=None,
@@ -748,7 +749,7 @@ class InputHipims:
         obj_boundary = self.Boundary
         file_names_list = []
         fmt_h = ['%g', '%g']
-        fmt_hu = ['%g', '%.8e', '%.8e']
+        fmt_hu = ['%g', '%g', '%g']
         # write h_BC_[N].dat
         if file_tag in ['both', 'h']:
             h_sources = obj_boundary.data_table['hSources']
@@ -1354,7 +1355,7 @@ def write_device_setup(case_folder=None,
     print('device_setup.dat created')
 
 def write_rain_source(rain_source, case_folder=None, num_of_sections=1):
-    """ Write rainfall sources
+    """ Write rainfall sources [Independent function from hipims class]
     rain_source: numpy array, The 1st column is time in seconds, the 2nd
         towards the end columns are rainfall rate in m/s for each source ID in
         rainfall mask array
@@ -1496,12 +1497,11 @@ class ModelSummary:
                 item_value = Values_str+ratio_str
         self.information_dict[item_name] = item_value
 
-    def save_object(self, file_name):
+    def save_object(self, file_name, compression=True):
         """ Save Summary object
         """
         # Overwrites any existing file.
-        with open(file_name, 'wb') as output_file:
-            pickle.dump(self, output_file, pickle.HIGHEST_PROTOCOL)
+        save_object(self, file_name, compression)
 
 def load_object(file_name):
     """ Read a pickle file as an InputHipims object
@@ -1511,14 +1511,18 @@ def load_object(file_name):
         obj = pickle.load(input_file)
     return obj
 
-def save_object(obj, file_name):
+def save_object(obj, file_name, compression=True):
     """ Save the object
     """
     # Overwrites any existing file.
     if not file_name.endswith('.pickle'):
         file_name = file_name+'.pickle'
-    with open(file_name, 'wb') as output_file:
-        pickle.dump(obj, output_file, pickle.HIGHEST_PROTOCOL)
+    if compression:
+        with gzip.open(file_name, 'wb') as output_file:
+            pickle.dump(obj, output_file, pickle.HIGHEST_PROTOCOL)
+    else:
+        with open(file_name, 'wb') as output_file:
+            pickle.dump(obj, output_file, pickle.HIGHEST_PROTOCOL)    
 
 #%% Displays or updates a console progress bar
 def progress_display(total, progress, file_tag, time_left):
