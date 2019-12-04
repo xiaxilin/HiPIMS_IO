@@ -7,16 +7,16 @@ Created on Sat Apr  6 13:03:25 2019
 """
 import os
 import sys
-import numpy as np
+import copy
 import gzip
 import math
+import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
 from matplotlib import cm
 from matplotlib.colors import ListedColormap
 from matplotlib.patches import Patch
-import matplotlib.colors as colors
 from matplotlib.colors import LightSource
-import copy
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy import interpolate
 #%% *******************************To deal with raster data********************
@@ -178,10 +178,10 @@ class Raster(object):
             target_ds = self.To_osgeo_raster()
         else:
             target_ds = rasterDS
-        gdal.RasterizeLayer(target_ds, [1], layer, burn_values=[-3333])
-        indexArray = target_ds.ReadAsArray()
-        indexArray[indexArray!=-3333]=0
-        indexArray[indexArray==-3333]=1
+        gdal.RasterizeLayer(target_ds, [1], layer, burn_values=[-1])
+        rasterized_array = target_ds.ReadAsArray()
+        indexArray = np.full(rasterized_array.shape, False)
+        indexArray[rasterized_array==1] = True
         target_ds=None
         return indexArray
     
