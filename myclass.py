@@ -697,6 +697,7 @@ class Raster(object):
                   'cellsize':cellsize, 'NODATA_value':NODATA_value}        
         if not np.isscalar(header['NODATA_value']):
             header['NODATA_value'] = -9999
+        array[array == header['NODATA_value']] = float('nan')
         self.header = header
         self.array = array
         self.projection = ds.GetProjection()
