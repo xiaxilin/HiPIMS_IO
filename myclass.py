@@ -448,9 +448,9 @@ class Raster(object):
             if not output_file.endswith('.gz'):
                 output_file=output_file+'.gz'        
         self.output_file = output_file
-        Z = self.array
+        array = self.array+0
         header = self.header
-        Z[np.isnan(Z)]= header['NODATA_value']
+        array[np.isnan(array)]= header['NODATA_value']
         if not isinstance(header, dict):
             raise TypeError('bad argument: header')
                      
@@ -464,23 +464,18 @@ class Raster(object):
         f.write(b"yllcorner    %g\n" % header['yllcorner'])
         f.write(b"cellsize    %g\n" % header['cellsize'])
         f.write(b"NODATA_value    %g\n" % header['NODATA_value'])
-        np.savetxt(f, Z, fmt='%g', delimiter=' ')
+        np.savetxt(f, array, fmt='%g', delimiter=' ')
         f.close()
         if EPSG is not None:
             self.__SetWktProjection(EPSG)
-        # if projection is defined, write .prj file    
-        if self.projection is not None:    
-            prjFileName = output_file
-            wkt = self.projection
-            if output_file.endswith('.asc'):
-                prjFileName=prjFileName[0:-4]+'.prj'
-            elif output_file.endswith('.asc.gz'):
-                prjFileName=prjFileName[0:-7]+'.prj'
-                
-            prj = open(prjFileName, "w")            
-            prj.write(wkt)
-            prj.close()
-            
+        # if projection is defined, write .prj file for asc file
+
+        if output_file.endswith('.asc'):
+            if self.projection is not None:
+                prj_file=output_file[0:-4]+'.prj'
+                wkt = self.projection
+                with open(prj_file, "w") as prj:        
+                    prj.write(wkt)
         return None
     
     # convert this object to an osgeo raster object

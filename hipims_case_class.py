@@ -328,7 +328,7 @@ class InputHipims:
             self.write_gauges_position()
             if self.num_of_sections > 1:
                 self.write_halo_file()
-            self.write_mesh_file(self)
+            self.write_mesh_file()
             write_times_setup(self.case_folder, 
                               self.num_of_sections, self.times)
             write_device_setup(self.case_folder, self.num_of_sections)
