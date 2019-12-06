@@ -271,12 +271,14 @@ class InputHipims:
         if new_folder is not None:
             if new_folder.endswith('/'):
                 new_folder = new_folder[:-1]
+            if new_folder == 'cwd':
+                new_folder = os.getcwd()
             self.case_folder = new_folder
             # for multiple GPUs
             if hasattr(self, 'Sections'):
                 for obj in self.Sections:
                     sub_case_folder = new_folder+'/'+str(obj.section_id)
-                    obj.set_case_folder(sub_case_folder)
+                    obj.set_case_folder(sub_case_folder) 
         # for single gpu
         self.data_folders = _create_io_folders(self.case_folder,
                                                make_dir)
