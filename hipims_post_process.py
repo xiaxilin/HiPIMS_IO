@@ -48,13 +48,13 @@ class OutputHipims:
         elif hasattr(input_obj, 'case_folder'):
             case_folder = input_obj.case_folder
             self.case_folder = case_folder
-            self.num_of_sections = input_obj.num_of_sections
-            self.header = input_obj.Raster.header
-            
+            num_of_sections = input_obj.num_of_sections
+            self.num_of_sections = num_of_sections
+            self.header = input_obj.Raster.header            
         else:
             raise IOError('The first argument (input_obj) must be',
                           'a InputHipims object')
-        if num_of_sections == 1:
+        if self.num_of_sections == 1:
             output_folder = case_folder+'/output'
             input_folder = case_folder+'/input'
             dem_name = input_folder+'/mesh/DEM.txt'
@@ -65,7 +65,7 @@ class OutputHipims:
             output_folder = []
             input_folder = []
             headers = []
-            for i in range(num_of_sections):
+            for i in range(self.num_of_sections):
                 output_folder.append(case_folder+'/'+str(i)+'/output')  
                 input_folder.append(case_folder+'/'+str(i)+'/input')
                 dem_name = case_folder+'/'+str(i)+'/input/mesh/DEM.txt'
