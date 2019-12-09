@@ -182,8 +182,8 @@ def rank_show(array, header, figname=None, figsize=None, dpi=300,
     norm = colors.BoundaryNorm(breaks, len(breaks))
     blues = cm.get_cmap('viridis', norm.N)
     newcolors = blues(np.linspace(0, 1, norm.N))
-#    white = np.array([255/256, 255/256, 255/256, 1])
-#    newcolors[0, :] = white
+    white = np.array([255/256, 255/256, 255/256, 1])
+    newcolors[0, :] = white
     newcmp = ListedColormap(newcolors)
     map_extent = header2extent(header)
     map_extent = _adjust_map_extent(map_extent, relocate, scale_ratio)

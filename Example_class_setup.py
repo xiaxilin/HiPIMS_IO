@@ -135,4 +135,3 @@ for onebound in subs:
     value = value+1
 HP_obj_m.Raster.Mapshow(dem_array=grid_values)
 
-
