@@ -108,8 +108,8 @@ class InputHipims:
             case_folder = os.getcwd()
         self.case_folder = case_folder
         self.num_of_sections = num_of_sections
-        self.attributes = InputHipims.attributes_default.copy()
-        self.times = None
+        self.attributes = InputHipims.attributes_default.copy()        
+        _ = self.set_runtime()
         # get row and col index of all cells on DEM grid
         self._get_cell_subs()  # add _valid_cell_subs and _outline_cell_subs
         # divide model domain to several sections if it is not a sub section
@@ -119,11 +119,13 @@ class InputHipims:
             pass
         else:
             self.__divide_grid()
-            self._global_header = self.Raster.header
-        self._initialize_summary_obj()# get a Model Summary object
+            self._global_header = self.Raster.header        
         self.set_case_folder() # set data_folders
-        self.set_boundary_condition(outline_boundary='open')
+        self.set_device_no() # set the device number
         self.birthday = datetime.now()
+        self.set_boundary_condition(outline_boundary='open')
+        self._initialize_summary_obj()# initialize a Model Summary object
+        
     def __str__(self):
         """
         To show object summary information when it is called in console
@@ -172,10 +174,10 @@ class InputHipims:
                                             outline_subs, dem_header)
         self.Boundary = bound_obj
         if hasattr(self, 'Sections'):
-            bound_obj._divide_domain(self)
-        summary_str = bound_obj.get_summary()
-        self.Summary.add_items('Boundary conditions', summary_str)
-#        self.Boundary.print_summary()
+            bound_obj._divide_domain(self)       
+        if hasattr(self, 'Summary'):
+            summary_str = bound_obj.get_summary()
+            self.Summary.add_items('Boundary conditions', summary_str)
 
     def set_parameter(self, parameter_name, parameter_value):
         """ Set grid-based parameters
@@ -232,10 +234,6 @@ class InputHipims:
                                       rain_source[:,rain_mask_unique+1]]
             self.Summary.add_param_infor('precipitation_source', 
                                          rain_source_valid)
-            if self.times is None:
-                time_seires = rain_source[:,0]
-                self.times = [time_seires.min(), time_seires.max(),
-                              np.ptp(time_seires), np.ptp(time_seires)] 
         # renew summary information
 
     def set_gauges_position(self, gauges_pos=None):
@@ -284,6 +282,31 @@ class InputHipims:
                                                make_dir)
         if hasattr(self, 'Summary'):
             self.Summary.set_param('Case folder', self.case_folder)
+    
+    def set_runtime(self, runtime=None):
+        """set runtime of the model
+        runtime: a list of four values representing start, end, output interval
+        and backup interval respectively
+        """
+        if runtime is None:
+            runtime = [0, 3600, 3600, 3600]
+        runtime = np.array(runtime)
+        self.times = runtime
+        runtime_str = ('start from {0}s, output every {2}s,'+
+                       ' backup every {3}s, and end at {1}s')
+        runtime_str = runtime_str.format(*runtime)
+        if hasattr(self, 'Summary'):
+            self.Summary.set_param('Run time', runtime_str)
+        return runtime_str
+
+    def set_device_no(self, device_no=None):
+        """set device no of the model
+        device_no: int or a list of int corresponding to the number of sections 
+        """
+        if device_no is None:
+            device_no = np.arange(self.num_of_sections)
+        device_no = np.array(device_no)
+        self.device_no = device_no
 
     def add_user_defined_parameter(self, param_name, param_value):
         """ Add a grid-based user-defined parameter to the model
@@ -299,6 +322,7 @@ class InputHipims:
     def decomposite_domain(self, num_of_sections):
         if isinstance(self, InputHipims):
             self.num_of_sections = num_of_sections
+            self.set_device_no()
             self._global_header = self.Raster.header
             self.__divide_grid()
             self.set_case_folder() # set data_folders
@@ -333,7 +357,7 @@ class InputHipims:
             self.write_mesh_file()
             write_times_setup(self.case_folder, 
                               self.num_of_sections, self.times)
-            write_device_setup(self.case_folder, self.num_of_sections)
+            self.write_device_file()
         elif file_tag == 'boundary_condition':
             self.write_boundary_conditions()
         elif file_tag == 'gauges_pos':
@@ -447,6 +471,13 @@ class InputHipims:
                 obj_section.Raster.Write_asc(file_name)
         self.Summary.write_readme(self.case_folder+'/readme.txt')
         print('DEM.txt created')
+    
+    def write_device_file(self, device_no=None):
+        """Create device_setup.dat for choosing GPU number to run the model
+        """
+        if device_no is None:
+            device_no = self.device_no
+        write_device_setup(self.case_folder, self.num_of_sections, device_no)
 
     def save_object(self, file_name):
         """ Save object as a pickle file
@@ -499,8 +530,6 @@ class InputHipims:
         ax.grid(True)
         plt.show()
         return plot_data
-        
-        
 #------------------------------------------------------------------------------
 #*************************** Protected methods ********************************
 #------------------------------------------------------------------------------
@@ -1408,15 +1437,19 @@ class ModelSummary:
         num_of_sections = hipims_obj.num_of_sections
         dem_header = hipims_obj.Raster.header
         self.domain_area = num_valid_cells*(dem_header['cellsize']**2)
+        runtime_str = hipims_obj.set_runtime(hipims_obj.times)
+        birthday_str = hipims_obj.birthday.strftime('%Y-%m-%d %H:%M:%S')
         self.information_dict = {
             '*******************':'Model summary***************',
-            'Case folder':self.__case_folder,
+            'Case folder':hipims_obj.case_folder,
             'Number of Sections':str(num_of_sections),
             'Grid size':'{:d} rows * {:d} cols, {:.2f}m resolution'.format(
                 dem_header['nrows'], dem_header['ncols'],
                 dem_header['cellsize']),
             'Domain area':'{1:,} m^2 with {0:,} valid cells'.format(
-                num_valid_cells, self.domain_area)}
+                num_valid_cells, self.domain_area),
+            'Birthday':birthday_str,
+            'Run time':runtime_str}
         if hasattr(hipims_obj, 'section_id'): # sub-domain object
             self.information_dict['*******************'] = \
                 'Section summary**************'
@@ -1445,7 +1478,10 @@ class ModelSummary:
             filename = self.__case_folder+'/readme.txt'
         with open(filename, 'w') as file2write:
             for key, value in self.information_dict.items():
-                file2write.write(key+': '+value+'\n')
+                if '--------------' in key:
+                    file2write.write(key+value+'\n')
+                else:
+                    file2write.write(key+': '+value+'\n')
 
     def set_param(self, param_name, param_value):
         """ Set values in the information_dict
