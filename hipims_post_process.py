@@ -16,6 +16,8 @@ Created on Tue Nov 26 00:07:48 2019
 #import gzip
 import os
 import datetime
+import pickle
+import gzip
 import numpy as np
 import pandas as pd
 import spatial_analysis as sp
@@ -123,7 +125,7 @@ class OutputHipims:
             grid_array, header = self._combine_multi_gpu_grid_data(file_tag)        
         return grid_array, header
     
-    def add_gauge_hydrograpgh(self, gauge_name, gauge_ind, var_name):
+    def add_gauge_results(self, gauge_name, gauge_ind, var_name):
         """ add simulated value to the object gauge by gauge 
         """
         if not hasattr(self, 'gauge_values'):
@@ -148,6 +150,21 @@ class OutputHipims:
         else:
             gauge_dict = {var_name:values_pd}
         self.gauge_values[gauge_name] = gauge_dict
+    
+    def add_grid_results(self, result_names):
+        """Read and add grid results to the object
+        result_names: string or list of string, gives the name of grid file
+        """
+        if not hasattr(self, 'grid_results'):
+            self.grid_results = {}
+        if type(result_names) is list: # for a list of files
+            for file_tag in result_names:
+                grid_array, header = self.read_grid_file(file_tag)
+                self.grid_results['file_tag'] = grid_array
+        else: # for one file
+            file_tag = result_names
+            grid_array, header = self.read_grid_file(file_tag)
+            self.grid_results['file_tag'] = grid_array
         
     def set_headers_from_output(self, output_asc='h_0.asc'):
         """ Read header information of each model domain/subdomain
@@ -193,7 +210,31 @@ class OutputHipims:
             array_global[ind_top:ind_bottom+1,:] = array_local
         return array_global, header_global
     
+    def save_object(self, file_name):
+        """Save the object to a pickle file
+        """
+        save_object(self, file_name, compression=True)
+    
+def load_object(file_name):
+    """ Read a pickle file as an InputHipims object
+    """
+    #read an InputHipims object file
+    with open(file_name, 'rb') as input_file:
+        obj = pickle.load(input_file)
+    return obj
 
+def save_object(obj, file_name, compression=True):
+    """ Save the object
+    """
+    # Overwrites any existing file.
+    if not file_name.endswith('.pickle'):
+        file_name = file_name+'.pickle'
+    if compression:
+        with gzip.open(file_name, 'wb') as output_file:
+            pickle.dump(obj, output_file, pickle.HIGHEST_PROTOCOL)
+    else:
+        with open(file_name, 'wb') as output_file:
+            pickle.dump(obj, output_file, pickle.HIGHEST_PROTOCOL) 
 #%% =======================Supporting functions===============================
 def _combine_multi_gpu_gauges_data(header_list, case_folder, file_tag):
     """ Combine gauges outputs from multi-gpu models according to gauges
