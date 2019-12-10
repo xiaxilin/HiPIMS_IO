@@ -484,8 +484,7 @@ class InputHipims:
         """
         if not file_name.endswith('.pickle'):
             file_name = file_name+'.pickle'
-        with open(file_name, 'wb') as output:  # Overwrites any existing file.
-            pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
+        save_object(self, file_name, compression=True)
 #------------------------------------------------------------------------------
 #******************************* Visualization ********************************
 #------------------------------------------------------------------------------
@@ -1545,8 +1544,12 @@ def load_object(file_name):
     """ Read a pickle file as an InputHipims object
     """
     #read an InputHipims object file
-    with open(file_name, 'rb') as input_file:
-        obj = pickle.load(input_file)
+    try:
+        with gzip.open(file_name, 'rb') as input_file:
+            obj = pickle.load(input_file)
+    except:
+        with open(file_name, 'rb') as input_file:
+            obj = pickle.load(input_file)
     return obj
 
 def save_object(obj, file_name, compression=True):
