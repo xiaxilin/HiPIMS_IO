@@ -296,7 +296,7 @@ class InputHipims:
                        ' backup every {3}s, and end at {1}s')
         runtime_str = runtime_str.format(*runtime)
         if hasattr(self, 'Summary'):
-            self.Summary.set_param('Run time', runtime_str)
+            self.Summary.add_items('Run time', runtime_str)
         return runtime_str
 
     def set_device_no(self, device_no=None):
