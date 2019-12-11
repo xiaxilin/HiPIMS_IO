@@ -48,6 +48,9 @@ class InputHipims:
         Sections: a list of objects of child-class InputHipimsSub
         attributes_default: (dict) default model attribute names and values
         attributes: (dict) model attribute names and values
+        times:  (list/numpy array) of four values reprenting model run time in
+                seconds: start, end, output interval, backup interval
+        device_no: (int) the gpu device id(s) to run model
     Properties (Private):
         _valid_cell_subs: (tuple, int numpy) two numpy array indicating rows
             and cols of valid cells on the DEM grid
@@ -355,8 +358,7 @@ class InputHipims:
             if self.num_of_sections > 1:
                 self.write_halo_file()
             self.write_mesh_file()
-            write_times_setup(self.case_folder, 
-                              self.num_of_sections, self.times)
+            self.write_runtime_file()
             self.write_device_file()
         elif file_tag == 'boundary_condition':
             self.write_boundary_conditions()
@@ -471,6 +473,13 @@ class InputHipims:
                 obj_section.Raster.Write_asc(file_name)
         self.Summary.write_readme(self.case_folder+'/readme.txt')
         print('DEM.txt created')
+    
+    def write_runtime_file(self, time_values=None):
+        """ write times_setup.dat file
+        """
+        if time_values is None:
+            time_values = self.times
+        write_times_setup(self.case_folder, self.num_of_sections, time_values)
     
     def write_device_file(self, device_no=None):
         """Create device_setup.dat for choosing GPU number to run the model
