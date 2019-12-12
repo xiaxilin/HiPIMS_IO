@@ -1553,6 +1553,7 @@ def load_object(file_name):
     """ Read a pickle file as an InputHipims object
     """
     #read an InputHipims object file
+    print('loading '+file_name+'...')
     try:
         with gzip.open(file_name, 'rb') as input_file:
             obj = pickle.load(input_file)
@@ -1572,7 +1573,8 @@ def save_object(obj, file_name, compression=True):
             pickle.dump(obj, output_file, pickle.HIGHEST_PROTOCOL)
     else:
         with open(file_name, 'wb') as output_file:
-            pickle.dump(obj, output_file, pickle.HIGHEST_PROTOCOL)    
+            pickle.dump(obj, output_file, pickle.HIGHEST_PROTOCOL)
+    print(file_name+' has been saved')
 
 #%% Displays or updates a console progress bar
 def progress_display(total, progress, file_tag, time_left):

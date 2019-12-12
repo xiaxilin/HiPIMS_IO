@@ -50,7 +50,8 @@ class OutputHipims:
             self.case_folder = case_folder
             num_of_sections = input_obj.num_of_sections
             self.num_of_sections = num_of_sections
-            self.header = input_obj.Raster.header            
+            self.header = input_obj.Raster.header
+            self.Summary = input_obj.Summary
         else:
             raise IOError('The first argument (input_obj) must be',
                           'a InputHipims object')
@@ -218,7 +219,8 @@ class OutputHipims:
 def load_object(file_name):
     """ Read a pickle file as an InputHipims object
     """
-    #read an InputHipims object file
+    #read an object file
+    print('loading '+file_name+'...')
     try:
         with gzip.open(file_name, 'rb') as input_file:
             obj = pickle.load(input_file)
@@ -238,7 +240,8 @@ def save_object(obj, file_name, compression=True):
             pickle.dump(obj, output_file, pickle.HIGHEST_PROTOCOL)
     else:
         with open(file_name, 'wb') as output_file:
-            pickle.dump(obj, output_file, pickle.HIGHEST_PROTOCOL) 
+            pickle.dump(obj, output_file, pickle.HIGHEST_PROTOCOL)
+    print(file_name+' has been saved')
 #%% =======================Supporting functions===============================
 def _combine_multi_gpu_gauges_data(header_list, case_folder, file_tag):
     """ Combine gauges outputs from multi-gpu models according to gauges
