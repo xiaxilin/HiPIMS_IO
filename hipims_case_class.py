@@ -1553,13 +1553,13 @@ def load_object(file_name):
     """ Read a pickle file as an InputHipims object
     """
     #read an InputHipims object file
-    print('loading '+file_name+'...')
     try:
         with gzip.open(file_name, 'rb') as input_file:
             obj = pickle.load(input_file)
     except:
         with open(file_name, 'rb') as input_file:
             obj = pickle.load(input_file)
+    print(file_name+' loaded')
     return obj
 
 def save_object(obj, file_name, compression=True):
