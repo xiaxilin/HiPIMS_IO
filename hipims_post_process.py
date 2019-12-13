@@ -165,7 +165,7 @@ class OutputHipims:
         else: # for one file
             file_tag = result_names
             grid_array, header = self.read_grid_file(file_tag)
-            self.grid_results['file_tag'] = grid_array
+            self.grid_results[file_tag] = grid_array
         
     def set_headers_from_output(self, output_asc='h_0.asc'):
         """ Read header information of each model domain/subdomain
