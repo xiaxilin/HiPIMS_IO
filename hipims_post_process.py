@@ -132,12 +132,13 @@ class OutputHipims:
             grid_array, header = self._combine_multi_gpu_grid_data(file_tag)        
         return grid_array, header
     
-    def add_gauge_results(self, gauge_name, gauge_ind, var_name):
+    def add_gauge_results(self, gauge_name, gauge_ind, var_name, 
+                          compressed=False):
         """ add simulated value to the object gauge by gauge 
         """
         if not hasattr(self, 'gauge_values'):
             self.gauge_values = {}
-        _, _, values = self.read_gauges_file(file_tag=var_name)
+        _, _, values = self.read_gauges_file(file_tag=var_name, compressed)
         values_pd = self.times_simu.copy()
         if var_name=='h': # calculation method is min
             values = values[:, gauge_ind]
