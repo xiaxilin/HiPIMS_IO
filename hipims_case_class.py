@@ -1172,7 +1172,7 @@ def _split_array_by_rows(input_array, header, split_rows, overlayed_rows=2):
     """
     header_global = header
     end_row = header_global['nrows']-1
-    overlayed_rows = 2
+    overlayed_rows = 1
     array_local = []
     header_local = []
     section_sequence = np.arange(len(split_rows)+1)
