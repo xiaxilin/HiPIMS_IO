@@ -96,7 +96,7 @@ class OutputHipims:
             gauge_pos_file = self.input_folder+'/field/gauges_pos.dat'
             if compressed:
                 gauge_output_file = gauge_output_file+'.gz'
-                gauge_pos_file = gauge_output_file+'.gz'
+                gauge_pos_file = gauge_pos_file+'.gz'
             times, values = _read_one_gauge_file(gauge_output_file)
             gauges = np.loadtxt(gauge_pos_file, dtype='float64', ndmin=2)
         else: # multi-GPU
