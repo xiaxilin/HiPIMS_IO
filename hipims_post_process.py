@@ -81,7 +81,7 @@ class OutputHipims:
         self.output_folder = output_folder
         self.input_folder = input_folder
     
-    def read_gauges_file(self, file_tag='h'):
+    def read_gauges_file(self, file_tag='h', compressed=False):
         """ Read gauges files for time seires of values at rhe monitored gauges
         file_tag: h, hU, eta, corresponding to h_gauges.dat, hU_gauges.dat,
             and eta_gauges.dat, respectively
@@ -91,9 +91,13 @@ class OutputHipims:
             values: gauge values corresponding to the gauges position
         """
         if self.num_of_sections==1:
-            gauge_output_file = self.output_folder+'/'+file_tag+'_gauges.dat'
-            times, values = _read_one_gauge_file(gauge_output_file)
+            output_folder = self.output_folder+'/'
+            gauge_output_file = output_folder+file_tag+'_gauges.dat'
             gauge_pos_file = self.input_folder+'/field/gauges_pos.dat'
+            if compressed:
+                gauge_output_file = gauge_output_file+'.gz'
+                gauge_pos_file = gauge_output_file+'.gz'
+            times, values = _read_one_gauge_file(gauge_output_file)
             gauges = np.loadtxt(gauge_pos_file, dtype='float64', ndmin=2)
         else: # multi-GPU
             if not hasattr(self, 'header'):
@@ -110,7 +114,7 @@ class OutputHipims:
             self.times_simu['date_times'] = date_times
         return gauges, times, values
     
-    def read_grid_file(self, file_tag='h_0'):
+    def read_grid_file(self, file_tag='h_0', compressed=False):
         """Read asc grid files from output
         Return
             grid_array: a numpy array provides the cell values in grid
@@ -118,6 +122,8 @@ class OutputHipims:
         """
         if not file_tag.endswith('.asc'):
             file_tag = file_tag+'.asc'
+        if compressed:
+            file_tag = file_tag+'.gz'
         if self.num_of_sections==1:
             file_name = self.output_folder+'/'+file_tag
             grid_array, header, _ = sp.arcgridread(file_name)
