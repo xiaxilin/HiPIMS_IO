@@ -51,6 +51,7 @@ class OutputHipims:
             num_of_sections = input_obj.num_of_sections
             self.num_of_sections = num_of_sections
             self.header = input_obj.Raster.header
+            self.header_global = input_obj.Raster.header
             self.Summary = input_obj.Summary
         else:
             raise IOError('The first argument (input_obj) must be',
@@ -59,8 +60,13 @@ class OutputHipims:
             output_folder = case_folder+'/output'
             input_folder = case_folder+'/input'
             dem_name = input_folder+'/mesh/DEM.txt'
-            if os.path.exists(dem_name):
-                self.header = sp.arc_header_read(dem_name)
+            if not hasattr(self, 'header'):
+                if os.path.exists(dem_name):
+                    self.header = sp.arc_header_read(dem_name)
+                elif os.path.exists(dem_name+'.gz'):
+                    self.header = sp.arc_header_read(dem_name+'.gz')
+                else:
+                    self.header = {}
                 self.header_global = self.header
         else:
             output_folder = []
