@@ -158,7 +158,7 @@ class OutputHipims:
             gauge_dict = {var_name:values_pd}
         self.gauge_values[gauge_name] = gauge_dict
     
-    def add_grid_results(self, result_names):
+    def add_grid_results(self, result_names, compressed=False):
         """Read and add grid results to the object
         result_names: string or list of string, gives the name of grid file
         """
@@ -166,11 +166,11 @@ class OutputHipims:
             self.grid_results = {}
         if type(result_names) is list: # for a list of files
             for file_tag in result_names:
-                grid_array, header = self.read_grid_file(file_tag)
+                grid_array, header = self.read_grid_file(file_tag, compressed)
                 self.grid_results['file_tag'] = grid_array
         else: # for one file
             file_tag = result_names
-            grid_array, header = self.read_grid_file(file_tag)
+            grid_array, header = self.read_grid_file(file_tag, compressed)
             self.grid_results[file_tag] = grid_array
         
     def set_headers_from_output(self, output_asc='h_0.asc'):
