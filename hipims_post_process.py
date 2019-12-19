@@ -138,7 +138,7 @@ class OutputHipims:
         """
         if not hasattr(self, 'gauge_values'):
             self.gauge_values = {}
-        _, _, values = self.read_gauges_file(file_tag=var_name, compressed)
+        _, _, values = self.read_gauges_file(var_name, compressed)
         values_pd = self.times_simu.copy()
         if var_name=='h': # calculation method is min
             values = values[:, gauge_ind]
