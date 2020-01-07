@@ -142,7 +142,7 @@ class MOGREPS_data(object):
         """
         Write a rainfall mask file
         """
-        mask_array, indArray = self.Create_rain_mask(self, demFile=dem_file)
+        mask_array, indArray = self.Create_rain_mask(demFile=dem_file)
         dem_obj = Raster(dem_file)
         mask_obj = Raster(array=mask_array, header=dem_obj.header)
         if file_name.endswith('.gz'):
@@ -275,6 +275,17 @@ def WriteRainSourceArray(gzfileList=None,datetimeStr=None,realization=None,demFi
     np.savetxt(namestr+'.txt',outputArray,fmt='%g')
     return None
 
-
+def export_rain_mask(obj, file_name, dem_file):
+    """
+    Write a rainfall mask file
+    """
+    mask_array, indArray = obj.Create_rain_mask(demFile=dem_file)
+    dem_obj = Raster(dem_file)
+    mask_obj = Raster(array=mask_array, header=dem_obj.header)
+    if file_name.endswith('.gz'):
+        mask_obj.Write_asc(output_file = file_name, compression=True)
+    else:
+        mask_obj.Write_asc(output_file = file_name)
+    print(file_name+' created')
 
     
