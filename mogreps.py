@@ -6,6 +6,7 @@ Created on Tue Aug 20 11:30:15 2019
 @author: Xiaodong Ming
 """
 import pickle
+import sys
 import iris
 import warnings
 import gzip
@@ -13,12 +14,10 @@ import numpy as np
 import pandas as pd
 import datetime
 import glob
+from myclass import Raster
 from pyproj import Proj, transform
-import sys
 # position storing HiPIMS_IO.py and ArcGridDataProcessing.py
 scriptsPath = '/home/cvxx/HiPIMS/scripts/HiPIMS_IO' 
-sys.path.insert(0,scriptsPath)
-scriptsPath = '/Users/b4042552/Dropbox/Python/HiPIMS' 
 sys.path.insert(0,scriptsPath)
 #%% grid data for HiPIMS input format
 class MOGREPS_data(object):
@@ -26,13 +25,10 @@ class MOGREPS_data(object):
     read MOGREPS pp file and save selected data as an object
     
     Properties:
-        ppFileName: the name of a MOGREPS pp file
-        
+        ppFileName: the name of a MOGREPS pp file        
     methods(private): 
-    """
-
-    
-    def __init__(self,ppFileName,varName='stratiform_rainfall_flux'):
+    """    
+    def __init__(self, ppFileName, varName='stratiform_rainfall_flux'):
         if ppFileName.endswith('.pp'):
             self.ppFileName=ppFileName
             with warnings.catch_warnings():
@@ -63,8 +59,10 @@ class MOGREPS_data(object):
             time_delta_s = np.array(time_delta_s.total_seconds()).round()
             self.time_seconds = time_delta_s
             
-            
     def Save_object(self, filename=None):
+        """
+        Save the objec as a gz file
+        """
         if filename is None:
             filename = self.ppFileName[:-3]+'.gz'
         with gzip.open(filename, 'wb') as output:  # Overwrites any existing file.
@@ -72,34 +70,32 @@ class MOGREPS_data(object):
         # write the object to a file
         
     def Read_object(filename):
+        """
+        Read gz file
+        """
         if filename.endswith('.gz'):
             with gzip.open(filename, 'rb') as f:
                 output_obj = pickle.load(f)
         else:
             with open(filename, 'rb') as f:
-                output_obj = pickle.load(f)
-                
+                output_obj = pickle.load(f)                
         return output_obj
     
-    def Create_rain_mask(self,demFile=None,mask_values=None):
+    def Create_rain_mask(self, demFile=None, mask_values=None):
         """
-        # create and return an rainfall mask object of raster
+        # create, and return an rainfall mask object of raster
         # demFile: the DEM file name
         # mask_values: an array with the same size of DEM. if it is not given
                 an int sequency value starting from 0 will be given to each
                 mask cell. 
         """
-        from myclass import raster
         x,y = self.Coords_transform()
-
-           
         mask_resolution = np.max([x[0,1]-x[0,0],x[1,0]-x[0,0]]).round(1)
 #        print(mask_resolution)
         mask_resolution = np.absolute(mask_resolution)
         if demFile is not None:
             # read a raster from a file
-            demRaster = raster(demFile)
-            
+            demRaster = Raster(demFile)           
             mask_left = demRaster.extent_dict['left']-mask_resolution/2
             mask_right = demRaster.extent_dict['right']+mask_resolution/2
             mask_bottom = demRaster.extent_dict['bottom']-mask_resolution/2
@@ -113,11 +109,9 @@ class MOGREPS_data(object):
             indArray = ind1 & ind2 & ind3 & ind4 
             
             points = np.c_[x[indArray],y[indArray]]
-    #        values = mask_array
             
         else:
             # create a raster object 
-            # header
             demHeader = {}
             demHeader['ncols'] = x.shape[1]
             demHeader['nrows'] = x.shape[0]
@@ -128,7 +122,7 @@ class MOGREPS_data(object):
             demArray = np.zeros((demHeader['nrows'],demHeader['ncols']))
 #            demArray = demArray.astype('float')
             
-            demRaster = raster(array=demArray,header=demHeader,epsg=27700)
+            demRaster = Raster(array=demArray, header=demHeader, epsg=27700)
             points = np.c_[x.flatten(),y.flatten()]
             values = np.arange(x.size)
             indArray = demArray==0
@@ -137,12 +131,26 @@ class MOGREPS_data(object):
             values = mask_values.flatten()
         else:
             values = np.arange(points.shape[0])
-            
-        mask_array=demRaster.Interpolate_to(points,values)
+        # create mask array
+        mask_array=demRaster.Interpolate_to(points, values)
         del demRaster
+
         
         return mask_array, indArray#points,values#
     
+    def export_rain_mask(self, file_name, dem_file):
+        """
+        Write a rainfall mask file
+        """
+        mask_array, indArray = self.Create_rain_mask(self, demFile=dem_file)
+        dem_obj = Raster(dem_file)
+        mask_obj = Raster(array=mask_array, header=dem_obj.header)
+        if file_name.endswith('.gz'):
+            mask_obj.Write_asc(output_file = file_name, compression=True)
+        else:
+            mask_obj.Write_asc(output_file = file_name)
+        print(file_name+' created')
+                    
     def Export_rain_source_array(self,demFile=None,indArray=None):
         """
         Export rainfall source array and timeArray
