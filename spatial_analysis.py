@@ -129,6 +129,36 @@ def arcgridwrite(file_name, array, header, compression=False):
     np.savetxt(file_h, array, fmt='%g', delimiter=' ')
     file_h.close()
     print(file_name + ' created')
+
+def read_tif(file_name):
+    """
+    read tif file and return array, header
+    only read the first band
+    """
+    from osgeo import gdal
+    ds = gdal.Open(file_name)        
+    ncols = ds.RasterXSize
+    nrows = ds.RasterYSize
+    geo_transform = ds.GetGeoTransform()
+    x_min = geo_transform[0]
+    cellsize = geo_transform[1]
+    y_max = geo_transform[3]
+    xllcorner = x_min
+    yllcorner = y_max-nrows*cellsize
+    rasterBand = ds.GetRasterBand(1)
+    NODATA_value = rasterBand.GetNoDataValue()
+    array = rasterBand.ReadAsArray()
+    header = {'ncols':ncols, 'nrows':nrows,
+              'xllcorner':xllcorner, 'yllcorner':yllcorner,
+              'cellsize':cellsize, 'NODATA_value':NODATA_value}     
+    if not np.isscalar(header['NODATA_value']):
+        header['NODATA_value'] = -9999
+    array[array == header['NODATA_value']] = float('nan')
+    extent = header2extent(header)
+    rasterBand = None
+    ds = None
+    return array, header, extent
+
 #%% ----------------------------Visulization-----------------------------------
 def map_show(array, header, figname=None, figsize=None, dpi=300,
              vmin=None, vmax=None,
@@ -173,14 +203,14 @@ def rank_show(array, header, figname=None, figsize=None, dpi=300,
     """
     np.warnings.filterwarnings('ignore')
     array = array+0
+    if 'NODATA_value' in header.keys():
+        array[array == header['NODATA_value']] = np.nan
     if breaks[0] > np.nanmin(array):
         breaks.insert(0, np.nanmin(array))
-#    if breaks[0] <= np.nanmin(array):
-#        breaks.insert(0, np.nanmin(array))    
     if breaks[-1] < np.nanmax(array):
         breaks.append(np.nanmax(array))        
     norm = colors.BoundaryNorm(breaks, len(breaks))
-    blues = cm.get_cmap('viridis', norm.N)
+    blues = cm.get_cmap('blues', norm.N)
     newcolors = blues(np.linspace(0, 1, norm.N))
     white = np.array([255/256, 255/256, 255/256, 1])
     newcolors[0, :] = white
@@ -293,7 +323,7 @@ def _set_colorbar(ax,img,norm):
     cax.yaxis.set_ticklabels(category_names,rotation=0)
     return cax
 
-def _set_color_legend(ax, norm, cmp, 
+def _set_color_legend(ax, norm, cmp,
                       loc='lower right', bbox_to_anchor=(1,0),
                       facecolor=None):
     category_names = [(str(norm.boundaries[ii-1])+'~'+

@@ -13,6 +13,7 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
+from osgeo import ogr
 from matplotlib import cm
 from matplotlib.colors import ListedColormap
 from matplotlib.patches import Patch
@@ -41,18 +42,17 @@ class Raster(object):
         Write_asc: write grid data into an asc file with or without 
             compression(.gz)
         To_osgeo_raster: convert this object to an osgeo raster object
-        RectClip: clip raster according to a rectangle extent
-        Clip: clip raster according to a polygon
-        Rasterize: rasterize a shapefile on the Raster object and return a 
+        rect_clip: clip raster according to a rectangle extent
+        clip: clip raster according to a polygon
+        rasterize: rasterize a shapefile on the Raster object and return a 
             bool array with 'Ture' in and on the polygon/polyline
-        Resample: resample the raster to a new cellsize
+        resample: resample the raster to a new cellsize
         GetXYcoordinate: Get X and Y coordinates of all raster cells
         GetGeoTransform: Get GeoTransform tuple for osgeo raster dataset
-        Mapshow: draw a map of the raster dataset
+        mapshow: draw a map of the raster dataset
         VelocityShow: draw velocity vectors as arrows with values on two Raster
             datasets (u, v)
-        
-    
+            
     Methods(private):
         __header2extent: convert header to extent
         __read_asc: read an asc file ends with .asc or .gz
@@ -106,7 +106,7 @@ class Raster(object):
             self.__header2extent()
             
 #%%============================= Spatial analyst ==============================   
-    def RectClip(self, clipExtent):
+    def rect_clip(self, clipExtent):
         """
         clipExtent: left, right, bottom, top
         clip raster according to a rectangle extent
@@ -132,7 +132,7 @@ class Raster(object):
         new_obj.source_file = None       
         return new_obj
     
-    def Clip(self, mask=None):
+    def clip(self, mask=None):
         """
         clip raster according to a mask
         mask: 
@@ -142,7 +142,6 @@ class Raster(object):
         return:
             a new raster object
         """
-        from osgeo import ogr
         if isinstance(mask, str):
             shpName =  mask
         # Open shapefile datasets        
@@ -151,16 +150,16 @@ class Raster(object):
         layer = shpDataset.GetLayer()
         shpExtent = np.array(layer.GetExtent()) #(minX, maxY, maxX, minY)           
         # 1. rectangle clip raster
-        new_obj = self.RectClip(shpExtent)
+        new_obj = self.rect_clip(shpExtent)
         new_raster = copy.deepcopy(new_obj)                
-        indexArray = new_raster.Rasterize(shpDataset)
+        indexArray = new_raster.rasterize(shpDataset)
         arrayClip = new_raster.array
         arrayClip[indexArray==0]=new_raster.header['NODATA_value']
         new_raster.array = arrayClip        
         shpDataset.Destroy()
         return new_raster
     
-    def Rasterize(self, shpDSName, rasterDS=None):
+    def rasterize(self, shpDSName, rasterDS=None):
         """
         rasterize the shapefile to the raster object and return a bool array
             with Ture value in and on the polygon/polyline
@@ -185,7 +184,7 @@ class Raster(object):
         target_ds=None
         return indexArray
     
-    def Resample(self,newCellsize,method='bilinear'):
+    def resample(self,newCellsize,method='bilinear'):
         """
         resample the raster to a new cellsize
         newCellsize: cellsize of the new raster
@@ -288,13 +287,13 @@ class Raster(object):
         zNew = zMat[rows_Z,cols_Z]
         zNew = zNew.transpose()
         zNew = zNew.astype(zMat.dtype)
-#        extent_new = demHead2Extent(head_new)
+#        extent_new = header2extent(head_new)
         new_obj = Raster(array=zNew, header=head_new)
         return new_obj 
          
 #%%=============================Visualization==================================
     #%% draw inundation map with domain outline
-    def Mapshow(self, figname=None, figsize=None, dpi=300, vmin=None, vmax=None, 
+    def mapshow(self, figname=None, figsize=None, dpi=300, vmin=None, vmax=None, 
                 cax=True, dem_array=None, relocate=False, scale_ratio=1):
         """
         Display raster data without projection
@@ -751,7 +750,7 @@ def makeDiagonalShape(extent):
     return shapePoints
 
 #%% convert header data to extent
-def demHead2Extent(demHead):
+def header2extent(demHead):
     # convert dem header file (dict) to a spatial extent of the DEM
     R = demHead
     left = R['xllcorner']
