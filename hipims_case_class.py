@@ -103,6 +103,7 @@ class InputHipims:
         """
         dem_data: (Raster object) or (str) provides file name of the DEM data
         """
+        self.birthday = datetime.now()
         if type(dem_data) is str:
             self.Raster = myclass.Raster(dem_data) # create Raster object
         elif type(dem_data) is myclass.Raster:
@@ -125,7 +126,6 @@ class InputHipims:
             self._global_header = self.Raster.header        
         self.set_case_folder() # set data_folders
         self.set_device_no() # set the device number
-        self.birthday = datetime.now()
         self.set_boundary_condition(outline_boundary='open')
         self._initialize_summary_obj()# initialize a Model Summary object
         
@@ -988,7 +988,7 @@ class Boundary(object):
         cell_id = []
         for n in range(data_table.shape[0]):
             if data_table.extent[n] is None: #outline boundary
-                dem_extent = myclass.demHead2Extent(dem_header)
+                dem_extent = myclass.header2extent(dem_header)
                 polyPoints = myclass.makeDiagonalShape(dem_extent)
             elif len(data_table.extent[n]) == 2:
                 xyv = data_table.extent[n]
