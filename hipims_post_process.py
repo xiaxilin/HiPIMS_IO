@@ -267,11 +267,12 @@ def _combine_multi_gpu_gauges_data(header_list, case_folder, file_tag):
         domain_header = header_list[i]
         gauge_pos_file = case_folder+'/'+str(i)+'/input/field/gauges_pos.dat'
         gauge_xy = np.loadtxt(gauge_pos_file, dtype='float64', ndmin=2)
-        gauge_ind = _find_gauges_inside_domain(domain_header, gauge_xy)
-        gauges_array.append(gauge_xy[gauge_ind,:])
-        file_name = case_folder+'/'+str(i)+'/output/'+file_tag+'_gauges.dat'
-        times, values = _read_one_gauge_file(file_name, gauge_ind)
-        value_array.append(values)
+        if gauge_xy.size>=2:
+            gauge_ind = _find_gauges_inside_domain(domain_header, gauge_xy)
+            gauges_array.append(gauge_xy[gauge_ind,:])
+            file_name = case_folder+'/'+str(i)+'/output/'+file_tag+'_gauges.dat'
+            times, values = _read_one_gauge_file(file_name, gauge_ind)
+            value_array.append(values)
     gauges_array = np.concatenate(gauges_array, axis=0)
     gauges_array, ind = np.unique(gauges_array, axis=0, return_index=True)
     if values.ndim == 2:
