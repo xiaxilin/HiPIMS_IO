@@ -21,7 +21,6 @@ To do:
 """
 __author__ = "Xiaodong Ming"
 import os
-import sys
 import warnings
 import shutil
 import pickle
@@ -39,7 +38,7 @@ class InputHipims:
     Read data, process data, write input files, and save data of a model case.
     Properties (public):
         case_folder: (str) the absolute path of the case folder
-        data_folders: (dict) paths for data folders (input, output, mesh, field)
+        data_folders: (dict) paths for data folders(input, output, mesh, field)
         num_of_sections: (scalar) number of GPUs to run the model
         Boundary: a boundary object of class Boundary to provide boundary cells
             location, ID, type, and source data.
@@ -136,7 +135,7 @@ class InputHipims:
         self.Summary.display()
         time_str = self.birthday.strftime('%Y-%m-%d %H:%M:%S')
         return  self.__class__.__name__+' object created on '+ time_str
-#    __repr__ = __str__
+    __repr__ = __str__
 #******************************************************************************
 #************************Setup the object**************************************
     def set_boundary_condition(self, boundary_list=None,
@@ -776,7 +775,6 @@ class InputHipims:
 #------------------------------------------------------------------------------
 #*************** Private methods only for the parent class ********************
 #------------------------------------------------------------------------------
-
     def __write_boundary_conditions(self, field_dir, file_tag='both'):
         """ Write boundary condition source files,if hU is given as flow
         timeseries, convert flow to hUx and hUy.
@@ -877,14 +875,14 @@ class InputHipimsSub(InputHipims):
     """object for each section, child class of InputHipims
     Attributes:
         sectionNO: the serial number of each section
-        _valid_cell_subs: (tuple, int) two numpy array indicating rows and cols of valid
-                    cells on the local grid
-        valid_cell_subsOnGlobal: (tuple, int) two numpy array indicating rows and cols of valid
-                    cells on the global grid
+        _valid_cell_subs: (tuple, int) two numpy array indicating rows and cols
+        of valid cells on the local grid
+        valid_cell_subsOnGlobal: (tuple, int) two numpy array indicating rows
+        and cols of valid cells on the global grid
         shared_cells_id: 2-row shared Cells id on a local grid
         case_folder: input folder of each section
-        _outline_cell_subs: (tuple, int) two numpy array indicating rows and cols of valid
-                    cells on a local grid
+        _outline_cell_subs: (tuple, int) two numpy array indicating rows and 
+        cols of valid cells on a local grid
     """
     section_id = 0
     def __init__(self, dem_array, header, case_folder, num_of_sections):
@@ -892,6 +890,7 @@ class InputHipimsSub(InputHipims):
         InputHipimsSub.section_id = self.section_id+1
         dem_data = myclass.Raster(array=dem_array, header=header)
         super().__init__(dem_data, num_of_sections, case_folder)
+
 #%% boundary class definition
 class Boundary(object):
     """Class for boundary conditions
@@ -1032,7 +1031,7 @@ class Boundary(object):
             obj_section.Summary.add_items('Boundary conditions', summary_str)
 
 
-#===================================Static method==============================
+#%% ===================================Static method===========================
 def _cell_subs_convertor(input_cell_subs, header_global,
                          header_local, to_global=True):
     """
@@ -1348,6 +1347,15 @@ def _check_rainfall_rate_values(rain_source, times_in_1st_col=True):
               format(values_max, rain_rate_mean))
     return values_max, rain_rate_mean
 
+def _check_case_folder(case_folder):
+    """ check the format of case folder
+    """
+    if case_folder is None:
+        case_folder = os.getcwd()
+    if not case_folder.endswith('/'):
+        case_folder = case_folder+'/'
+    return case_folder
+
 #%% ***************************************************************************
 # *************************Public functions************************************
 def write_times_setup(case_folder=None, num_of_sections=1, time_values=None):
@@ -1357,10 +1365,7 @@ def write_times_setup(case_folder=None, num_of_sections=1, time_values=None):
     time_values: array or list of int/float, representing time in seconds,
         default values are [0, 3600, 1800, 3600]
     """
-    if case_folder is None:
-        case_folder = os.getcwd()
-    if not case_folder.endswith('/'):
-        case_folder = case_folder+'/'
+    case_folder = _check_case_folder(case_folder)
     if time_values is None:
         time_values = np.array([0, 3600, 1800, 3600])
     time_values = np.array(time_values)
@@ -1380,8 +1385,7 @@ def write_device_setup(case_folder=None,
     num_of_sections: int, the number of GPUs to use
     device_values: array or list of int, representing the GPU number
     """
-    if case_folder is None:
-        case_folder = os.getcwd()
+    case_folder = _check_case_folder(case_folder)
     if device_values is None:
         device_values = np.array(range(num_of_sections))
     device_values = np.array(device_values)
@@ -1404,10 +1408,7 @@ def write_rain_source(rain_source, case_folder=None, num_of_sections=1):
     rain_source = np.array(rain_source)
     # check rainfall source value to avoid very large raifall rates
     _check_rainfall_rate_values(rain_source)
-    if case_folder is None:
-        case_folder = os.getcwd()
-    if not case_folder.endswith('/'):
-        case_folder = case_folder+'/'
+    case_folder = _check_case_folder(case_folder)
     fmt1 = '%g'  # for the first col: times in seconds
     fmt2 = '%.8e'  # for the rest array for rainfall rate m/s
     num_mask_cells = rain_source.shape[1]-1
@@ -1426,7 +1427,34 @@ def write_rain_source(rain_source, case_folder=None, num_of_sections=1):
             shutil.copy2(file_name, field_dir)
     print('precipitation_source_all.dat created')
 
-#%% model information summary
+def load_object(file_name):
+    """ Read a pickle file as an InputHipims object
+    """
+    #read an InputHipims object file
+    try:
+        with gzip.open(file_name, 'rb') as input_file:
+            obj = pickle.load(input_file)
+    except:
+        with open(file_name, 'rb') as input_file:
+            obj = pickle.load(input_file)
+    print(file_name+' loaded')
+    return obj
+
+def save_object(obj, file_name, compression=True):
+    """ Save the object
+    """
+    # Overwrites any existing file.
+    if not file_name.endswith('.pickle'):
+        file_name = file_name+'.pickle'
+    if compression:
+        with gzip.open(file_name, 'wb') as output_file:
+            pickle.dump(obj, output_file, pickle.HIGHEST_PROTOCOL)
+    else:
+        with open(file_name, 'wb') as output_file:
+            pickle.dump(obj, output_file, pickle.HIGHEST_PROTOCOL)
+    print(file_name+' has been saved')
+    
+#%% HiPIMS model input information summary
 class ModelSummary:
     """ Store and disply all model information including:
     case_folder
@@ -1548,51 +1576,3 @@ class ModelSummary:
         """
         # Overwrites any existing file.
         save_object(self, file_name, compression)
-
-def load_object(file_name):
-    """ Read a pickle file as an InputHipims object
-    """
-    #read an InputHipims object file
-    try:
-        with gzip.open(file_name, 'rb') as input_file:
-            obj = pickle.load(input_file)
-    except:
-        with open(file_name, 'rb') as input_file:
-            obj = pickle.load(input_file)
-    print(file_name+' loaded')
-    return obj
-
-def save_object(obj, file_name, compression=True):
-    """ Save the object
-    """
-    # Overwrites any existing file.
-    if not file_name.endswith('.pickle'):
-        file_name = file_name+'.pickle'
-    if compression:
-        with gzip.open(file_name, 'wb') as output_file:
-            pickle.dump(obj, output_file, pickle.HIGHEST_PROTOCOL)
-    else:
-        with open(file_name, 'wb') as output_file:
-            pickle.dump(obj, output_file, pickle.HIGHEST_PROTOCOL)
-    print(file_name+' has been saved')
-
-#%% Displays or updates a console progress bar
-def progress_display(total, progress, file_tag, time_left):
-    """
-    Displays or updates a console progress bar.
-    """
-    if total == progress:
-        file_tag = 'finished'
-    else:
-        file_tag = file_tag+'...'
-    bar_length, status = 50, ""
-    progress = float(progress) / float(total)
-    if progress >= 1.:
-        progress, status = 1, "\r\n"
-    block = int(round(bar_length * progress))
-    text = "\r|{}| {:.0f}% {:<16} time left: {:.0f}s {}".format(
-        chr(9608) * block + "-" * (bar_length - block),
-        round(progress * 100, 0),
-        file_tag, time_left, status)
-    sys.stdout.write(text)
-    sys.stdout.flush()

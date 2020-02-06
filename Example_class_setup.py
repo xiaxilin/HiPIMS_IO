@@ -77,7 +77,7 @@ HP_obj.write_input_files() # write all input files
 # show model summary
 HP_obj.Summary.display()
 #  save the model object as a pickle file
-HP_obj.save_object(case_folder+'/hp_obj')
+#HP_obj.save_object(case_folder+'/hp_obj')
 
 #%%========================= For multiple GPUs ================================
 # load a model object and show its summary
