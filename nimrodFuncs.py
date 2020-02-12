@@ -12,17 +12,16 @@ import gzip
 import nimrod
 import numpy as np
 import getpass
-#import importlib
-#importlib.import_module('mpl_toolkits').__path__
 from datetime import datetime
+from myclass import Raster
 import matplotlib.pyplot as plt
 import ArcGridDataProcessing as AP
 #%% download tar data from internet
 def downloadNimrodTar(dateStr,localDir=None,cedaUsername=None,cedaPassword=None):
     """
     dateStr: string YYYYMMDD or 
-    cedaUsername: 'mxiaodong'
-    cedaPassword: ******
+    cedaUsername: ceda username
+    cedaPassword: ceda password
     """
     if localDir is None:
         localDir = os.getcwd()+'/'
@@ -52,6 +51,53 @@ def downloadNimrodTar(dateStr,localDir=None,cedaUsername=None,cedaPassword=None)
             print("Downloading..." + file)
             ftp.retrbinary("RETR " + file ,open(localDir + file, 'wb').write)
         ftp.close()
+
+def get_datetime_str_from_tar(tarfileName):
+    """Get a list of datetime stored in a nimrod tar file
+    """
+    datetime_list = []
+    tar = tarfile.open(tarfileName)
+    members = tar.getmembers()
+    for member in members:
+        name = member.name.split('_')
+        datetime_list.append(name[2])
+    tar.close()
+    return datetime_list
+
+def read_gridded_data_from_tar(tarfileName, datetimeStr=None):
+    """
+    input:
+        tarfileName: NIMROD tar file name
+        datetimeStr: yyyyMMddHHmm('201012310830') the date and time string
+            if datetimeStr is not given, output data of all records
+    output:
+        a Raster object
+    """
+
+    if datetimeStr is None:
+        datetimeStr = get_datetime_str_from_tar(tarfileName)
+    else:
+        if type(datetimeStr) is not list:
+           datetimeStr = [datetimeStr]
+    tar = tarfile.open(tarfileName)
+    members = tar.getmembers()
+    output_grids = []
+    output_datetimes = []
+    for member in members:
+        name = member.name.split('_')
+        name = name[2]
+        if name in datetimeStr:
+            output_datetimes.append(name)
+            fgz = tar.extractfile(member)
+            f=gzip.open(fgz,'rb')
+            gridObj = nimrod.Nimrod(f)
+            array, header, _ = gridObj.extract_asc()
+            obj_raster = Raster(array=array, header=header)
+            output_grids.append(obj_raster)
+            f.close()            
+    tar.close()   
+    return output_grids, output_datetimes
+    
 #%% read one grid from NIMROD tar file
 def extractOneGridFromNimrodTar(tarfileName,datetimeStr):
     """
@@ -63,7 +109,6 @@ def extractOneGridFromNimrodTar(tarfileName,datetimeStr):
     """
     gridObj = []
     tar = tarfile.open(tarfileName)
-    tar.getmembers()
     for member in tar.getmembers():
         fgz = tar.extractfile(member)
         #print(member.name)
@@ -75,7 +120,6 @@ def extractOneGridFromNimrodTar(tarfileName,datetimeStr):
             f.close()
     tar.close()   
     return gridObj
-
     
 #%% extract data from NIMROD tar file
 def getzMatFromNimrodTar(fileName,clipExtent=[]):
@@ -99,7 +143,7 @@ def getzMatFromNimrodTar(fileName,clipExtent=[]):
         zMat[zMat==0]=np.nan #unit: mm/h
         zMatList.append(zMat)
         #del zMat
-        dtStrList.append(datetimeStr)        
+        dtStrList.append(datetimeStr)       
     tar.close()
     #del tar
     #import gc
@@ -108,25 +152,29 @@ def getzMatFromNimrodTar(fileName,clipExtent=[]):
     dtStrList.sort()
     return dtStrList,zMatList,head,zExtent
 #%% create rainfall mask and rainfall source array for HiPIMS from 
-def getRainMaskSource(tarList,demHead,datetimeStart,datetimeEnd=[]):
+def getRainMaskSource(tarList, demHead, datetimeStart=None, datetimeEnd=None):
     
     """
     INPUTS
     tarList: a list of NIMROD tart files downloaded from badc
     demHead: a dictionary of dem file information
-    datetimeStart: datetime object, the start date and time for rainfall 
-        source array.
-    datetimeEnd: datetime object, the end date and time for rainfall
-        source array.
+    datetimeStart: string[yyyyMMddHHmm] or a datetime object, the start 
+        datetime for rainfall source array. The default is the earliest 
+        datetime in the source tar data
+    datetimeEnd: string or a datetime object, the end datetime for 
+        rainfall source array. The default is the latest datetime in the
+        source tar data
     """
-    #%% define clip extent
+    tarList.sort()
+
+    #%define clip extent    
     R = demHead
     left = R['xllcorner']
     right = R['xllcorner']+R['ncols']*R['cellsize']
     bottom = R['yllcorner']
     top = R['yllcorner']+R['nrows']*R['cellsize']
     clipExtent = (left,right,bottom,top)
-    #%% create rainfall mask grid according to the size of dem
+    #%create rainfall mask grid according to the size of dem
     zMatList = []
     dtStrList = []
     for tarName in tarList:
@@ -135,135 +183,34 @@ def getRainMaskSource(tarList,demHead,datetimeStart,datetimeEnd=[]):
         dtStrList = dtStrList+dtStr1
 #    zMatClip,headClip,extentClip = AP.ArraySquareClip(zMatList[0],head,zExtent)
      #mask value start from 0 and increase colum-wise
-    maskValue = np.arange(np.size(zMat1[0])).reshape((head['nrows'],head['ncols']),order='F')
-    rainMask= AP.MaskExtraction(maskValue,head,demHead)
-    #%% create rainfall source array
+    maskValue = np.arange(np.size(zMat1[0])).reshape(
+                    (head['nrows'],head['ncols']),order='F')
+    rainMask= AP.MaskExtraction(maskValue, head, demHead)
+    #%create rainfall source array
     zMatList = [x for _,x in sorted(zip(dtStrList,zMatList))]
     dtStrList.sort()
-    dates_list = [datetime.strptime(oneDate,'%Y%m%d%H%M')-datetimeStart for oneDate in dtStrList]
+    if type(datetimeStart) is str:
+        datetimeStart = datetime.strptime(datetimeStart,'%Y%m%d%H%M')
+    elif datetimeStart is None:
+        datetimeStart = datetime.strptime(dtStrList[0],'%Y%m%d%H%M')
+    if type(datetimeEnd) is str:
+        datetimeEnd = datetime.strptime(datetimeEnd,'%Y%m%d%H%M')
+    elif datetimeEnd is None:
+        datetimeEnd = datetime.strptime(dtStrList[-1],'%Y%m%d%H%M')
+    dates_list = [datetime.strptime(oneDate,'%Y%m%d%H%M')-datetimeStart
+                  for oneDate in dtStrList]
     timeSeries = [oneInterval.total_seconds() for oneInterval in dates_list]
-    zMatSelected = [a.flatten(order='F') for a, b in zip(zMatList, timeSeries) if b>=0]
+    zMatSelected = [a.flatten(order='F') for a, b in 
+                    zip(zMatList, timeSeries) if b>=0]
     timeSeries = np.array(timeSeries)
     timeSeries = timeSeries[timeSeries>=0]
     rainArray = np.array(zMatSelected)
     rainArray[np.isnan(rainArray)]=0
     rainSource = np.c_[timeSeries,rainArray/3600/1000]
-    if not isinstance(datetimeEnd,list): 
+    if datetimeEnd is None: 
         endTime = datetimeEnd-datetimeStart
         endTime = endTime.total_seconds()
         rainSource = rainSource[timeSeries<=endTime,:]
         
-    return rainMask,rainSource
-    
-#%% ============================Visualization==================================
-#%% plot the initial map, then renew raster files only
-def initialMap(zMat,zExtent,poly_df=[],mapExtent=[],figsize=(6,8),vmin=0,vmax=10):        
-    # create figure
-    fig,ax = plt.subplots(1, figsize=figsize)
-    # plot shapefile outline
-    if len(poly_df)!=0:
-        poly_df.plot(ax=ax,facecolor='none',edgecolor='r',linewidth=0.5, animated=True)
-    else:
-        mapExtent=zExtent 
-    # create raster map    
-    img = ax.imshow(zMat,extent=zExtent,vmin=vmin,vmax=vmax)    
-    plt.axis('equal')
-    if len(mapExtent)==0:
-        mapExtent = (min(poly_df.bounds.minx),max(poly_df.bounds.maxx),
-                     min(poly_df.bounds.miny),max(poly_df.bounds.maxy))
-    ax.set_xlim(mapExtent[0], mapExtent[1])
-    ax.set_ylim(mapExtent[2], mapExtent[3])
-    
-    # deal with x and y tick labels
-    if mapExtent[1]-mapExtent[0]>10000:
-        labels = [str(int(value/1000)) for value in ax.get_xticks()]
-        ax.set_xticks(ax.get_xticks())
-        ax.set_xticklabels(labels)
-        labels = [str(int(value/1000)) for value in ax.get_yticks()]
-        ax.set_yticks(ax.get_yticks())
-        ax.set_yticklabels(labels,rotation=90)
-        ax.set_xlabel('km towards east')
-        ax.set_ylabel('km towards north')
-    else:
-        ax.set_xlabel('metre towards east')
-        ax.set_ylabel('metre towards north')
-        plt.yticks(rotation=90)
-    
-    ax.axes.grid(linestyle='--',linewidth=0.5)
-    from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-
-    axins = inset_axes(ax,
-               width="5%",  # width = 5% of parent_bbox width
-               height="100%",  # height : 50%
-               loc='lower right',
-               bbox_to_anchor=(0.06, 0., 1, 1),
-               bbox_transform=ax.transAxes,
-               borderpad=0,
-               )
-    cbar=plt.colorbar(img,pad=0.05,cax=axins)
-#        labels = cbar.ax.get_yticklabels()
-#        cbar.ax.set_yticklabels(labels, rotation='vertical')
-    cbar.ax.set_title('mm/h',loc='left')        
-    return fig,ax,img
-
-#%% plot all maps with data from zMat List
-# need inputs from func getzMatFromNimrodTar and func initialMap
-def plotRainRateFromList(zMatList,zExtent,dtStrList,
-                         poly_df=[],mapExtent=[],
-                         figsize=(6,8),vmin=0,vmax=10):
-    """
-    zMatList: List of rainfall rate matrix
-    zExtent: extent of the rainfall matrix
-    dtStrList: List of datetime strings
-    poly_df: background polygon
-    vmin,vmax: the range of rain value to be shown in figure
-    """
-    # plot the initial map, then renew raster files only
-    fig,ax,img=initialMap(zMatList[0],zExtent,
-                          poly_df,mapExtent,figsize,vmin,vmax)
-    # renew raster file
-    for i in range(len(zMatList)):
-        titleStr = datetime.strptime(dtStrList[i], '%Y%m%d%H%M')
-        titleStr=titleStr.strftime("%Y-%m-%d %H:%M")
-        ax.set_title(titleStr)
-        img.set_data(zMatList[i])
-        fig.savefig(dtStrList[i]+'.jpg', dpi=100)
-        print(titleStr)
-    plt.close(fig)
-#%% make an animation for rainfall rate    
-def animateRainRate(videoName,zMatList=[],zExtent=[],dtStrList=[],
-                         poly_df=[],mapExtent=[],imagesList=[],
-                         figsize=(6,8),vmin=0,vmax=10,fps=30):
-    # plot all the rainfall files
-    import cv2
-
-    if len(imagesList)==0:
-        plotRainRateFromList(zMatList,zExtent,dtStrList,
-                         poly_df,mapExtent,
-                         figsize,vmin,vmax)
-        images = [s + '.jpg' for s in dtStrList]
-        images.sort()
-    else:
-        images = imagesList
-    frame = cv2.imread(images[0])
-    height, width, layers = frame.shape
-    video = cv2.VideoWriter(videoName, -1, fps, (width,height))
-    for image in images:
-        video.write(cv2.imread(image))
-        os.remove(image)
-    cv2.destroyAllWindows()
-    video.release()
-#%%
-def animateRainRateFromNimrodTar(videoName,tarList,clipExtent=[],poly_df=[],mapExtent=[],
-                         figsize=(6,8),vmin=0,vmax=10,fps=30):
-    imagesList = []
-    for tarName in tarList:
-        dtStrList,zMatList,head,zExtent = getzMatFromNimrodTar(tarName,clipExtent)
-        plotRainRateFromList(zMatList,zExtent,dtStrList,
-                         poly_df,mapExtent,
-                         figsize,vmin,vmax)
-        imagesList = imagesList+dtStrList
-    imagesList = [s + '.jpg' for s in imagesList]
-    imagesList.sort()
-    animateRainRate(videoName,imagesList=imagesList,fps=fps)
+    return rainMask, rainSource
     

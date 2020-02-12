@@ -21,6 +21,7 @@ import gzip
 import numpy as np
 import pandas as pd
 import spatial_analysis as sp
+from myclass import Raster
 #import hipims_case_class
 class OutputHipims:
     """To read and analyze otuput files from a HiPIMS flood model
@@ -50,6 +51,7 @@ class OutputHipims:
             self.case_folder = case_folder
             num_of_sections = input_obj.num_of_sections
             self.num_of_sections = num_of_sections
+            self.Raster = input_obj.Raster
             self.header = input_obj.Raster.header
             self.header_global = input_obj.Raster.header
             self.Summary = input_obj.Summary
@@ -135,7 +137,9 @@ class OutputHipims:
             grid_array, header, _ = sp.arcgridread(file_name)
         else:
             # multi-GPU
-            grid_array, header = self._combine_multi_gpu_grid_data(file_tag)        
+            grid_array, header = self._combine_multi_gpu_grid_data(file_tag)
+        if not hasattr(self, 'Raster'):
+            self.Raster = Raster(array=grid_array*0, header=header)
         return grid_array, header
     
     def add_gauge_results(self, gauge_name, gauge_ind, var_name, 

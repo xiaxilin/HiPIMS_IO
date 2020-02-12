@@ -110,7 +110,7 @@ def create_mp4(output_file, rain_source, mask_file, fps=10, **kwargs):
     writer.close()
     
 def create_pictures(rain_source, mask_file, cellsize=1000, 
-                    start_date=None, shp_file=None):
+                    start_date=None, shp_file=None, **kwargs):
     """ create rainfall rate images
     rain_source
     mask_file: a arc grid 
@@ -137,7 +137,7 @@ def create_pictures(rain_source, mask_file, cellsize=1000,
         rain_obj = Raster(array=rain_array, header=mask_header)
         fig_name = 'temp'+str(i)+'.png'
         fig_names.append(fig_name)
-        fig, ax = rain_obj.mapshow(vmin=vmin, vmax=vmax)#
+        fig, ax = rain_obj.mapshow(vmin=vmin, vmax=vmax, **kwargs)#
         if start_date is None:
             title_str = '{:.0f}'.format(time_series[i])+'s'
         else:
@@ -157,6 +157,60 @@ def create_pictures(rain_source, mask_file, cellsize=1000,
         fig.savefig(fig_name, dpi=100)
         plt.close(fig)
     return fig_names
+
+#%% ============================Visualization==================================
+#%% 
+def initialMap(zMat,zExtent,poly_df=[],mapExtent=[],figsize=(6,8),vmin=0,vmax=10):
+    """ plot the initial map, then renew raster files only 
+    functions to be editted
+    """      
+    # create figure
+    fig,ax = plt.subplots(1, figsize=figsize)
+    # plot shapefile outline
+    if len(poly_df)!=0:
+        poly_df.plot(ax=ax,facecolor='none',edgecolor='r',linewidth=0.5, animated=True)
+    else:
+        mapExtent=zExtent 
+    # create raster map    
+    img = ax.imshow(zMat,extent=zExtent,vmin=vmin,vmax=vmax)    
+    plt.axis('equal')
+    if len(mapExtent)==0:
+        mapExtent = (min(poly_df.bounds.minx),max(poly_df.bounds.maxx),
+                     min(poly_df.bounds.miny),max(poly_df.bounds.maxy))
+    ax.set_xlim(mapExtent[0], mapExtent[1])
+    ax.set_ylim(mapExtent[2], mapExtent[3])
+    
+    # deal with x and y tick labels
+    if mapExtent[1]-mapExtent[0]>10000:
+        labels = [str(int(value/1000)) for value in ax.get_xticks()]
+        ax.set_xticks(ax.get_xticks())
+        ax.set_xticklabels(labels)
+        labels = [str(int(value/1000)) for value in ax.get_yticks()]
+        ax.set_yticks(ax.get_yticks())
+        ax.set_yticklabels(labels,rotation=90)
+        ax.set_xlabel('km towards east')
+        ax.set_ylabel('km towards north')
+    else:
+        ax.set_xlabel('metre towards east')
+        ax.set_ylabel('metre towards north')
+        plt.yticks(rotation=90)
+    
+    ax.axes.grid(linestyle='--',linewidth=0.5)
+    from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
+    axins = inset_axes(ax,
+               width="5%",  # width = 5% of parent_bbox width
+               height="100%",  # height : 50%
+               loc='lower right',
+               bbox_to_anchor=(0.06, 0., 1, 1),
+               bbox_transform=ax.transAxes,
+               borderpad=0,
+               )
+    cbar=plt.colorbar(img,pad=0.05,cax=axins)
+#        labels = cbar.ax.get_yticklabels()
+#        cbar.ax.set_yticklabels(labels, rotation='vertical')
+    cbar.ax.set_title('mm/h',loc='left')        
+    return fig,ax,img
     
 def _check_rainfall_rate_values(rain_source, times_in_1st_col=True):
     """ Check the rainfall rate values in rain source array

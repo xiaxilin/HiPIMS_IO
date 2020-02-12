@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 """
-Created on Tue Jan 1 2019 based on nimrod.py (for python 2) by Richard Thomas 2015
-@author: Xiaodong Ming 
+Created on Tue Jan 1 2019 based on nimrod.py (for python 2) by 
+Richard Thomas 2015 @contributer: Xiaodong Ming 
 
 Extract data from UK Met Office Rain Radar NIMROD image files.
 
@@ -370,9 +370,10 @@ class Nimrod:
                 np.savetxt(f,zData,fmt='%g', delimiter=' ')
         # return zData, head, and extent
         zData = zData.astype('float64')
-        zData[zData==self.nodata_value]=float('nan')
-        head['NODATA_value']=float('nan')
+        ind = zData==self.nodata_value
+        head['NODATA_value']=-9999
         zData = zData/32 # from 'mm/h*32' to 'mm/h'
+        zData[ind]=-9999
         return zData,head,self.extent
 
 #-------------------------------------------------------------------------------
