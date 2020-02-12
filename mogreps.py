@@ -87,7 +87,11 @@ class MOGREPS_data(object):
         # demFile: the DEM file name
         # mask_values: an array with the same size of DEM. if it is not given
                 an int sequency value starting from 0 will be given to each
-                mask cell. 
+                mask cell.
+        Return:
+            mask_obj: a Raster object provide the mask value array and its header
+            ind_array: index of the mask cells on the full rainfall grid. It 
+                is used to generate rainfall source array
         """
         x,y = self.Coords_transform()
         mask_resolution = np.max([x[0,1]-x[0,0],x[1,0]-x[0,0]]).round(1)
@@ -107,60 +111,51 @@ class MOGREPS_data(object):
             ind4 = y<=mask_top
             #index of the rainfall data points inside the DEM
             indArray = ind1 & ind2 & ind3 & ind4 
-            
             points = np.c_[x[indArray],y[indArray]]
             
         else:
             # create a raster object 
-            demHeader = {}
-            demHeader['ncols'] = x.shape[1]
-            demHeader['nrows'] = x.shape[0]
-            demHeader['xllcorner'] = x.min().round(2)-mask_resolution/2
-            demHeader['yllcorner'] = y.min().round(2)-mask_resolution/2            
-            demHeader['cellsize'] = mask_resolution
-            demHeader['NODATA_value'] = -9999
-            demArray = np.zeros((demHeader['nrows'],demHeader['ncols']))
-#            demArray = demArray.astype('float')
-            
-            demRaster = Raster(array=demArray, header=demHeader, epsg=27700)
+            header = {}
+            header['ncols'] = x.shape[1]
+            header['nrows'] = x.shape[0]
+            header['xllcorner'] = x.min().round(2)-mask_resolution/2
+            header['yllcorner'] = y.min().round(2)-mask_resolution/2            
+            header['cellsize'] = mask_resolution
+            header['NODATA_value'] = -9999
+            demArray = np.zeros((header['nrows'],header['ncols']))
+            demRaster = Raster(array=demArray, header=header, epsg=27700)
             points = np.c_[x.flatten(),y.flatten()]
-            values = np.arange(x.size)
             indArray = demArray==0
-                    
+        
         if mask_values is not None:
-            values = mask_values.flatten()
+            values = mask_values.flatten(order='F')
         else:
             values = np.arange(points.shape[0])
         # create mask array
-        mask_array=demRaster.Interpolate_to(points, values)
-        del demRaster
-
-        
-        return mask_array, indArray#points,values#
+        mask_obj = demRaster.Interpolate_to(points, values)
+        return mask_obj, indArray#points,values#
     
-    def export_rain_mask(self, file_name, dem_file):
+    def export_rain_mask(self, file_name, dem_file=None):
         """
         Write a rainfall mask file
         """
-        mask_array, indArray = self.Create_rain_mask(demFile=dem_file)
-        dem_obj = Raster(dem_file)
-        mask_obj = Raster(array=mask_array, header=dem_obj.header)
+        mask_obj, indArray = self.Create_rain_mask(demFile=dem_file)
         if file_name.endswith('.gz'):
             mask_obj.Write_asc(output_file = file_name, compression=True)
         else:
             mask_obj.Write_asc(output_file = file_name)
         print(file_name+' created')
                     
-    def Export_rain_source_array(self,demFile=None,indArray=None):
+    def Export_rain_source_array(self, demFile=None, indArray=None):
         """
         Export rainfall source array and timeArray
         
         """
-        #3D array: [layer,row,col]
+        #3D array of rainfall rate: self.data [layer,row,col]
         if indArray is None:
-            _,indArray = self.Create_rain_mask(demFile)
-        
-        #2D array: row--time, col--value
+            _, indArray = self.Create_rain_mask(demFile)
+        # cut the 3D array on each layer with indArray
+        #2D array: rain_source_array [row->time, col->value]
         rain_source_array = self.data[:,indArray]
         #original date
         t_origin = self.time_units
@@ -233,7 +228,9 @@ class MOGREPS_data(object):
     #    grid_out = [lon_new, lat_new]
         x,y = transform(inProj,outProj,lon_new,lat_new)
         x = x.reshape(lon2.shape)
+        x = np.flipud(x)
         y = y.reshape(lat2.shape)
+        y = np.flipud(y)
         return x,y
 
 def WriteRainSourceArray(gzfileList=None,datetimeStr=None,realization=None,demFile=None,fileprefix=None):
