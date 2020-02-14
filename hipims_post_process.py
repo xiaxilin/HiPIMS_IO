@@ -323,7 +323,7 @@ def _read_one_gauge_file(file_name, gauge_ind=None):
     removed
     Supporting function to read_gauges_file
     """
-    t_value = np.loadtxt(file_name, dtype='float64', ndim=2)
+    t_value = np.loadtxt(file_name, dtype='float64', ndmin=2)
     times = t_value[:, 0]
     values = t_value[:, 1:]
     if 'hU_gauges.dat' in file_name:
