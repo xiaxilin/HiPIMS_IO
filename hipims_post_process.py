@@ -168,6 +168,22 @@ class OutputHipims:
         else:
             gauge_dict = {var_name:values_pd}
         self.gauge_values[gauge_name] = gauge_dict
+
+    def add_all_gauge(self, var_name=None):
+        """ add all gauges as seperate records
+        suitable for each gauge position individually represent one 
+        gauge
+        var_name: 'h', 'hU', 'eta' if not given, then add both h and hU
+        """
+        if not hasattr(self, 'gauge_values'):
+            self.gauge_values = {}
+        if var_name is None:
+            for var_name in ['h', 'hU', 'eta']:
+                _, times, values = self.read_gauges_file(var_name)
+                self.gauge_values[var_name] = np.c_[times, values]
+        else:
+            _, times, values = self.read_gauges_file(var_name)
+            self.gauge_values[var_name] = np.c_[times, values]
     
     def add_grid_results(self, result_names, compressed=False):
         """Read and add grid results to the object
