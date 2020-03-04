@@ -241,8 +241,10 @@ class OutputHipims:
             else:
                 raise IOError('Cannot find '+asc_file)
         else: #multi-gpu model
+            print('Multi-GPU')
             headers = []
             for i in np.arange(num_of_sections):
+                print(i)
                 if asc_file is None:
                     asc_file = input_folder[i]+'/mesh/DEM.txt'
                 else:
