@@ -31,66 +31,42 @@ class OutputHipims:
             output folder(s)
         number_of_sections: (int) the number of subdomains of the model
         header: (dict or list of dict) provide the header information
+        header_list: a list of sub headers [only for multi-gpu model]
     Methods (public):
-        read_gauges_file:
-        read_grid_file:
-        set_headers_from_output: Read header information of each model 
-            domain/subdomain from asc files in the output folder
+        read_gauges_file: Read time seires of values at monitored gauges and
+            return gauges_pos, times, values
+        read_grid_file: read grid file(s) and return a grid object
+        add_gauge_results: add simulated value to the object gauge by gauge
+        add_all_gauge: add all gauges as seperate records when each gauge
+            position individually represent one gauge
+        gauge
     Methods (private):
     """  
-    def __init__(self, input_obj=None, case_folder=None, num_of_sections=None):
+    def __init__(self, input_obj=None, case_folder=None,
+                 num_of_sections=None, header_file_tag=None):
         """Initialize the object with a InputHiPIMS object or a case folder and
         the number of sections
+        header_file_tag: the output file to read grid header, e.g. 'h_0'
         """
         # pass argument values
         if input_obj is None:
             self.case_folder = case_folder
             self.num_of_sections = num_of_sections
+            self._set_input_output_folder()
+            self._set_grid_header(self, asc_file=header_file_tag+'.asc')
         elif hasattr(input_obj, 'case_folder'):
-            case_folder = input_obj.case_folder
-            self.case_folder = case_folder
-            num_of_sections = input_obj.num_of_sections
-            self.num_of_sections = num_of_sections
-            self.Raster = input_obj.Raster
+            # get information from the input object
+            # case_folder, num_of_sections, header
+            self.case_folder = input_obj.case_folder
+            self.num_of_sections = input_obj.num_of_sections
             self.header = input_obj.Raster.header
-            self.header_global = input_obj.Raster.header
             self.Summary = input_obj.Summary
         else:
-            raise IOError('The first argument (input_obj) must be',
+            raise IOError('The first argument (input_obj) must be '+
                           'a InputHipims object')
-        if self.num_of_sections == 1:
-            output_folder = case_folder+'/output'
-            input_folder = case_folder+'/input'
-            dem_name = input_folder+'/mesh/DEM.txt'
-            if not hasattr(self, 'header'):
-                if os.path.exists(dem_name):
-                    self.header = sp.arc_header_read(dem_name)
-                elif os.path.exists(dem_name+'.gz'):
-                    self.header = sp.arc_header_read(dem_name+'.gz')
-                else:
-                    self.header = {}
-                self.header_global = self.header
-        else:
-            output_folder = []
-            input_folder = []
-            headers = []
-            for i in range(self.num_of_sections):
-                output_folder.append(case_folder+'/'+str(i)+'/output')  
-                input_folder.append(case_folder+'/'+str(i)+'/input')
-                dem_name = case_folder+'/'+str(i)+'/input/mesh/DEM.txt'
-                if os.path.exists(dem_name):
-                    header = sp.arc_header_read(dem_name)
-                else:
-                    header = None
-                headers.append(header)
-            self.header = headers
-            if type(header) is list:
-                self.header_global = _header_local2global(self.header)
-        self.output_folder = output_folder
-        self.input_folder = input_folder
-    
+
     def read_gauges_file(self, file_tag='h', compressed=False):
-        """ Read gauges files for time seires of values at rhe monitored gauges
+        """ Read gauges files for time seires of values at the monitored gauges
         file_tag: h, hU, eta, corresponding to h_gauges.dat, hU_gauges.dat,
             and eta_gauges.dat, respectively
         Return:
@@ -106,21 +82,16 @@ class OutputHipims:
                 gauge_output_file = gauge_output_file+'.gz'
                 gauge_pos_file = gauge_pos_file+'.gz'
             times, values = _read_one_gauge_file(gauge_output_file)
-            gauges = np.loadtxt(gauge_pos_file, dtype='float64', ndmin=2)
+            gauges_pos = np.loadtxt(gauge_pos_file, dtype='float64', ndmin=2)
         else: # multi-GPU
-            if not hasattr(self, 'header'):
-                output_asc = input('Type an asc file name',
-                                   'in output folder to read header:\n')
-                self.set_headers_from_output(output_asc)
-            header_list = self.header
-            gauges, times, values = \
-                _combine_multi_gpu_gauges_data(header_list, 
-                                                self.case_folder, file_tag)
+            gauges_pos, times, values = _combine_multi_gpu_gauges_data(
+                    self.header_list, self.case_folder, file_tag)
         self.times_simu = pd.DataFrame({'times':times})
         if hasattr(self, 'ref_datetime'):
-            date_times = np.datetime64(self.ref_datetime)+times.astype('timedelta64[s]')
+            times_delta = times.astype('timedelta64[s]')
+            date_times = np.datetime64(self.ref_datetime)+times_delta                    
             self.times_simu['date_times'] = date_times
-        return gauges, times, values
+        return gauges_pos, times, values
     
     def read_grid_file(self, file_tag='h_0', compressed=False):
         """Read asc grid files from output
@@ -134,13 +105,11 @@ class OutputHipims:
             file_tag = file_tag+'.gz'
         if self.num_of_sections==1:
             file_name = self.output_folder+'/'+file_tag
-            grid_array, header, _ = sp.arcgridread(file_name)
-        else:
-            # multi-GPU
-            grid_array, header = self._combine_multi_gpu_grid_data(file_tag)
-        if not hasattr(self, 'Raster'):
-            self.Raster = Raster(array=grid_array*0, header=header)
-        return grid_array, header
+            grid_array, _, _ = sp.arcgridread(file_name)
+        else: # multi-GPU
+            grid_array = self._combine_multi_gpu_grid_data(file_tag)
+        grid_obj = Raster(array=grid_array, header=self.header)
+        return grid_obj
     
     def add_gauge_results(self, gauge_name, gauge_ind, var_name, 
                           compressed=False):
@@ -156,7 +125,7 @@ class OutputHipims:
             values_pd['values'] = values
         elif var_name=='hU':
             values = values[:, :, gauge_ind]
-            values = values.sum(axis=2)*self.header_global['cellsize']
+            values = values.sum(axis=2)*self.header['cellsize']
             values_pd['values_x'] = values[0]
             values_pd['values_y'] = values[1]
         else:
@@ -178,12 +147,13 @@ class OutputHipims:
         if not hasattr(self, 'gauge_values'):
             self.gauge_values = {}
         if var_name is None:
-            for var_name in ['h', 'hU', 'eta']:
-                _, times, values = self.read_gauges_file(var_name)
-                self.gauge_values[var_name] = np.c_[times, values]
-        else:
-            _, times, values = self.read_gauges_file(var_name)
+            var_name = ['h', 'hU', 'eta']
+        elif type(var_name) is not list:
+            var_name = []
+        for one_var_name in var_name:
+            gauges_pos, times, values = self.read_gauges_file(one_var_name)
             self.gauge_values[var_name] = np.c_[times, values]
+        self.gauges_pos = gauges_pos
     
     def add_grid_results(self, result_names, compressed=False):
         """Read and add grid results to the object
@@ -191,14 +161,12 @@ class OutputHipims:
         """
         if not hasattr(self, 'grid_results'):
             self.grid_results = {}
+        if type(result_names) is not list: # for a list of files
+            result_names = [result_names]
         if type(result_names) is list: # for a list of files
             for file_tag in result_names:
-                grid_array, header = self.read_grid_file(file_tag, compressed)
-                self.grid_results[file_tag] = grid_array
-        else: # for one file
-            file_tag = result_names
-            grid_array, header = self.read_grid_file(file_tag, compressed)
-            self.grid_results[file_tag] = grid_array
+                grid_obj = self.read_grid_file(file_tag, compressed)
+                self.grid_results[file_tag] = grid_obj.array
 
     def add_grid_results_obj(self, result_names, compressed=False):
         """Read and add grid results to the object
@@ -207,32 +175,15 @@ class OutputHipims:
         if type(result_names) is not list: # for a list of files
             result_names = [result_names]
         for file_tag in result_names:
-            grid_array, header = self.read_grid_file(file_tag, compressed)
-            self.file_tag = Raster(array=grid_array, header=header)
-        
-    def set_headers_from_output(self, output_asc='h_0.asc'):
-        """ Read header information of each model domain/subdomain
-        output_asc is the asc file providing header information if mesh files
-        are not available
-        """
-        if self.num_of_sections==1:
-            file_name = self.output_folder+'/'+output_asc
-            header = sp.arc_header_read(file_name)
-        else:
-            header = []
-            for output_folder in self.output_folder:
-                file_name = output_folder+'/'+output_asc
-                header.append(sp.arc_header_read(file_name))
-            self.header_global = _header_local2global(header)
-        self.header = header
-    
-    def set_ref_datetime(self, date_time,
-                             str_format='%Y-%m-%d %H:%M:%S'):
+            grid_obj = self.read_grid_file(file_tag, compressed)
+            self.file_tag = grid_obj
+
+    def set_ref_datetime(self, date_time, str_format='%Y-%m-%d %H:%M:%S'):
         """Set the refernce datetime of the simulation
         """
         if type(date_time) is str:
             self.ref_datetime = datetime.datetime.strptime(date_time,
-                                                               str_format)
+                                                           str_format)
         elif type(date_time) is datetime.datetime:
             self.ref_datetime = date_time
         else:
@@ -242,17 +193,67 @@ class OutputHipims:
         """Combine multi-gpu grid files into a single file
         asc_file_name: string endswith '.asc'
         """
-        if not hasattr(self, 'header'):
-            self.set_headers_from_output(asc_file_name)
-        header_global = _header_local2global(self.header)
+        header_global = self.header
+        header_list = self.header_list
+        output_folder = self.output_folder
         grid_shape = (header_global['nrows'], header_global['ncols'])
         array_global = np.zeros(grid_shape)
-        for header, output_folder in zip(self.header, self.output_folder):
-            ind_top, ind_bottom = _header2row_numbers(header, header_global)
-            file_name = output_folder+'/'+asc_file_name
+        for header0, folder0 in zip(header_list, output_folder):
+            ind_top, ind_bottom = _header2row_numbers(header0, header_global)
+            file_name = folder0+'/'+asc_file_name
             array_local, _, _ = sp.arcgridread(file_name)
             array_global[ind_top:ind_bottom+1,:] = array_local
-        return array_global, header_global
+        return array_global
+    
+    def _set_input_output_folder(self):
+        """ Set input and output folder/folders
+        case_folder, num_of_sections are required
+        """
+        case_folder = self.case_folder
+        num_of_sections = self.num_of_sections
+        if num_of_sections == 1: # single gpu
+            output_folder = case_folder+'/output'
+            input_folder = case_folder+'/input'
+        else: #multi-gpu model
+            output_folder = []
+            input_folder = []
+            for i in range(num_of_sections):
+                output_folder.append(case_folder+'/'+str(i)+'/output')  
+                input_folder.append(case_folder+'/'+str(i)+'/input')
+        self.output_folder = output_folder
+        self.input_folder = input_folder
+    
+    def _set_grid_header(self, asc_file=None):
+        """set header for the grid of the output object
+        num_of_sections, input_folder, output_folder are required
+        asc_file: the file to get grid header, default is DEM.txt
+        """
+        num_of_sections = self.num_of_sections
+        output_folder = self.output_folder
+        input_folder = self.input_folder
+        if num_of_sections == 1:
+            if asc_file is None:
+                asc_file = input_folder+'/mesh/DEM.txt'
+            else:
+                asc_file = output_folder+'/'+asc_file
+            if os.path.exists(asc_file):
+                self.header = sp.arc_header_read(asc_file)
+            else:
+                raise IOError('Cannot find '+asc_file)
+        else: #multi-gpu model
+            headers = []
+            for i in range(num_of_sections):
+                if asc_file is None:
+                    asc_file = input_folder[i]+'/mesh/DEM.txt'
+                else:
+                    asc_file = output_folder[i]+'/'+asc_file
+                if os.path.exists(asc_file):
+                    header = sp.arc_header_read(asc_file)
+                else:
+                    raise IOError('Cannot find '+asc_file)
+                headers.append(header)
+            self.header = _header_local2global(headers)
+            self.header_list = headers
     
     def save_object(self, file_name):
         """Save the object to a pickle file
