@@ -53,7 +53,7 @@ class OutputHipims:
             self.case_folder = case_folder
             self.num_of_sections = num_of_sections
             self._set_input_output_folder()
-            self._set_grid_header(self, asc_file=header_file_tag+'.asc')
+            self._set_grid_header(self, asc_file=header_file_tag)
         elif hasattr(input_obj, 'case_folder'):
             # get information from the input object
             # case_folder, num_of_sections, header
@@ -252,8 +252,9 @@ class OutputHipims:
                 else:
                     raise IOError('Cannot find '+asc_file)
                 headers.append(header)
-            self.header = _header_local2global(headers)
             self.header_list = headers
+            self.header = _header_local2global(headers)
+            
     
     def save_object(self, file_name):
         """Save the object to a pickle file
