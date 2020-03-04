@@ -194,11 +194,21 @@ class OutputHipims:
         if type(result_names) is list: # for a list of files
             for file_tag in result_names:
                 grid_array, header = self.read_grid_file(file_tag, compressed)
-                self.grid_results['file_tag'] = grid_array
+                self.grid_results[file_tag] = grid_array
         else: # for one file
             file_tag = result_names
             grid_array, header = self.read_grid_file(file_tag, compressed)
             self.grid_results[file_tag] = grid_array
+
+    def add_grid_results_obj(self, result_names, compressed=False):
+        """Read and add grid results to the object
+        result_names: string or list of string, gives the name of grid file
+        """
+        if type(result_names) is not list: # for a list of files
+            result_names = [result_names]
+        for file_tag in result_names:
+            grid_array, header = self.read_grid_file(file_tag, compressed)
+            self.file_tag = Raster(array=grid_array, header=header)
         
     def set_headers_from_output(self, output_asc='h_0.asc'):
         """ Read header information of each model domain/subdomain
@@ -275,6 +285,7 @@ def save_object(obj, file_name, compression=True):
         with open(file_name, 'wb') as output_file:
             pickle.dump(obj, output_file, pickle.HIGHEST_PROTOCOL)
     print(file_name+' has been saved')
+    
 #%% =======================Supporting functions===============================
 def _combine_multi_gpu_gauges_data(header_list, case_folder, file_tag):
     """ Combine gauges outputs from multi-gpu models according to gauges
