@@ -228,31 +228,31 @@ class OutputHipims:
         num_of_sections, input_folder, output_folder are required
         asc_file: the file to get grid header, default is DEM.txt
         """
+        
         num_of_sections = self.num_of_sections
         output_folder = self.output_folder
         input_folder = self.input_folder
         if num_of_sections == 1:
             if asc_file is None:
-                asc_file = input_folder+'/mesh/DEM.txt'
+                file_name = input_folder+'/mesh/DEM.txt'
             else:
-                asc_file = output_folder+'/'+asc_file
-            if os.path.exists(asc_file):
-                self.header = sp.arc_header_read(asc_file)
+                file_name = output_folder+'/'+asc_file
+            if os.path.exists(file_name):
+                self.header = sp.arc_header_read(file_name)
             else:
                 raise IOError('Cannot find '+asc_file)
         else: #multi-gpu model
-            print('Multi-GPU')
             headers = []
             for i in np.arange(num_of_sections):
                 print(i)
                 if asc_file is None:
-                    asc_file = input_folder[i]+'/mesh/DEM.txt'
+                    file_name = input_folder[i]+'/mesh/DEM.txt'
                 else:
-                    asc_file = output_folder[i]+'/'+asc_file
-                if os.path.exists(asc_file):
-                    header = sp.arc_header_read(asc_file)
+                    file_name = output_folder[i]+'/'+asc_file
+                if os.path.exists(file_name):
+                    header = sp.arc_header_read(file_name)
                 else:
-                    raise IOError('Cannot find '+asc_file)
+                    raise IOError('Cannot find '+file_name)
                 headers.append(header)
             self.header_list = headers
             self.header = _header_local2global(headers)
