@@ -25,7 +25,7 @@ from scipy import interpolate
 class Raster(object):
     """
     Created on Tue Apr 7 2019
-    @author: Xiaodong Ming 
+    @author: Xiaodong Ming
     
     To deal with raster data with a ESRI ASCII or GTiff format  
     
@@ -64,7 +64,8 @@ class Raster(object):
     """
 
 #%%======================== initialization function ===========================   
-    def __init__(self, source_file=None, array=None, header=None, epsg=None, projection=None):
+    def __init__(self, source_file=None, array=None, header=None, 
+                 epsg=None, projection=None, num_header_rows=6):
         """
         source_file: name of a asc/tif file if a file read is needed
         array: values in each raster cell [a numpy array]
@@ -90,7 +91,7 @@ class Raster(object):
                 if source_file.endswith('.tif'):
                     self.__read_tif() # only read the first band
                 else:
-                    self.__read_asc()
+                    self.__read_asc(num_header_rows)
             else:
                 raise IOError 
                 sys.exit(1)
@@ -174,17 +175,19 @@ class Raster(object):
             shpDataset = shpDSName
         layer = shpDataset.GetLayer()
         if rasterDS is None:
-            target_ds = self.To_osgeo_raster()
+            obj_raster = copy.deepcopy(self)
+            obj_raster.array = np.zeros(obj_raster.array.shape)
+            target_ds = obj_raster.To_osgeo_raster()
         else:
             target_ds = rasterDS
         gdal.RasterizeLayer(target_ds, [1], layer, burn_values=[-1])
         rasterized_array = target_ds.ReadAsArray()
         indexArray = np.full(rasterized_array.shape, False)
-        indexArray[rasterized_array==1] = True
+        indexArray[rasterized_array==-1] = True
         target_ds=None
         return indexArray
     
-    def resample(self,newCellsize,method='bilinear'):
+    def resample(self, newCellsize, method='bilinear'):
         """
         resample the raster to a new cellsize
         newCellsize: cellsize of the new raster
@@ -227,7 +230,8 @@ class Raster(object):
         
         geoT = g.GetGeoTransform()
         drv = gdal.GetDriverByName( "MEM" )
-        resampled_ds = drv.Create('',newRasterXSize, newRasterYSize, 1, eType=gdal.GDT_Float32)
+        resampled_ds = drv.Create('',newRasterXSize, newRasterYSize, 1, 
+                                  eType=gdal.GDT_Float32)
 
         newGeoT = (geoT[0], newCellsize, geoT[2],
                    geoT[3], geoT[3], -newCellsize)
@@ -235,7 +239,8 @@ class Raster(object):
         resampled_ds.SetProjection (g.GetProjectionRef() )
         resampled_ds.SetMetadata ({"TotalNObs":"%d" % total_obs})
 
-        gdal.RegenerateOverviews(dst_ds.GetRasterBand(1),[resampled_ds.GetRasterBand(1)], method)
+        gdal.RegenerateOverviews(dst_ds.GetRasterBand(1),
+                                 [resampled_ds.GetRasterBand(1)], method)
     
         resampled_ds.GetRasterBand(1).SetNoDataValue(self.header['NODATA_value'])
         
@@ -256,11 +261,32 @@ class Raster(object):
             Method of interpolation.
         """
         grid_x, grid_y = self.GetXYcoordinate()
-        array_interp = interpolate.griddata(points, values, (grid_x, grid_y), method=method)
+        array_interp = interpolate.griddata(points, values, (grid_x, grid_y),
+                                            method=method)
         new_obj = copy.deepcopy(self)
         new_obj.array = array_interp
         new_obj.source_file = 'mask_'+new_obj.source_file
         return new_obj
+    
+    def grid_interpolate(self, value_grid, method='nearest'):
+        """ Interpolate values of a grid to all cells on the Raster object
+        2D interpolate
+        value_grid: a grid file string or Raster object 
+        method: {‘linear’, ‘nearest’, ‘cubic’}, optional
+            Method of interpolation.
+        Return: 
+            a numpy array with the same size of the self object
+        """
+        if type(value_grid) is str:
+            value_grid = Raster(value_grid)
+        points_x, points_y = value_grid.GetXYcoordinate()
+        points = np.c_[points_x.flatten(), points_y.flatten()]
+        values = value_grid.array.flatten()
+        ind_nan = ~np.isnan(values)
+        grid_x, grid_y = self.GetXYcoordinate()
+        array_interp = interpolate.griddata(points[ind_nan, :], values[ind_nan],
+                                            (grid_x, grid_y), method=method)
+        return array_interp
     
     def GridResample(self,newsize):
         """
@@ -511,8 +537,8 @@ class Raster(object):
         dest_crs.ImportFromEPSG(destEPSG)
         # create dataset with driver
         driver = gdal.GetDriverByName(driverName)
-        ncols = self.header['ncols']
-        nrows = self.header['nrows']
+        ncols = int(self.header['ncols'])
+        nrows = int(self.header['nrows'])
 #        print('ncols:', type(ncols), ' - nrows:'+type(nrows))
         dataset = driver.Create(dst_filename, 
             xsize=ncols, 
@@ -622,7 +648,7 @@ class Raster(object):
         return X, Y
 
 # read ascii file        
-    def __read_asc(self):
+    def __read_asc(self, num_header_rows=6):
         """
         read asc file and return array, header
         if self.source_file ends with '.gz', then read the compressed file
@@ -637,14 +663,13 @@ class Raster(object):
             print('Error: '+fileName+' does not appear to exist')
             return
         # read header
-        header = {} # store header information including ncols, nrows, ...
-        numheaderrows = 6
+        header = {} # store header information including ncols, nrows, ...        
         n=1
         if fileName.endswith('.gz'):
             # read header
             with gzip.open(fileName, 'rt') as f:                
                 for line in f:
-                    if n<=numheaderrows:
+                    if n<=num_header_rows:
                         line = line.split(" ", 1)
                         header[line[0]] = float(line[1])
                     else:
@@ -654,14 +679,16 @@ class Raster(object):
             # read header
             with open(fileName, 'rt') as f:            
                 for line in f:
-                    if n<=numheaderrows:
+                    if n<=num_header_rows:
                         line = line.split(" ", 1)
                         header[line[0]] = float(line[1])
                     else:
                         break
                     n = n+1
     # read value array
-        array  = np.loadtxt(fileName, skiprows=numheaderrows, dtype='float64')
+        array  = np.loadtxt(fileName, skiprows=num_header_rows, dtype='float64')
+        if 'NODATA_value' not in header.keys():
+            header['NODATA_value'] = -9999
         array[array == header['NODATA_value']] = float('nan')
         header['ncols']=int(header['ncols'])
         header['nrows']=int(header['nrows'])
@@ -713,13 +740,13 @@ class Raster(object):
         f = self.source_file
         # read header
         header = {} # store header information including ncols, nrows, ...
-        numheaderrows = 6
-        for _ in range(numheaderrows):
+        num_header_rows = 6
+        for _ in range(num_header_rows):
             line = f.readline()
             line = line.strip().decode("utf-8").split(" ", 1)
             header[line[0]] = float(line[1])
             # read value array
-        array  = np.loadtxt(f, skiprows=numheaderrows, dtype='float64')
+        array  = np.loadtxt(f, skiprows=num_header_rows, dtype='float64')
         array[array == header['NODATA_value']] = float('nan')
         header['ncols'] = int(header['ncols'])
         header['nrows'] = int(header['nrows'])
@@ -742,7 +769,86 @@ class Raster(object):
         output = remove_spaces.replace("\n", "")
         self.projection = output
         return output
+#%% Extent compare between two Raster objects
+def compare_extent(extent0, extent1):
+    """Compare and show the difference between two Raster extents
+    extent0, extent1: objects or extent dicts to be compared
+    displaye: whether to show the extent in figures
+    Return:
+        0 extent0>=extent1
+        1 extent0<extent1
+        2 extent0 and extent1 have intersections
+    """
+    logic_left = extent0[0]<=extent1[0]
+    logic_right = extent0[1]>=extent1[1]
+    logic_bottom = extent0[2]<=extent1[2]
+    logic_top = extent0[3]>=extent1[3]
+    logic_all = logic_left+logic_right+logic_bottom+logic_top
+    if logic_all == 4:
+        output = 0
+    elif logic_all == 0:
+        output = 1
+    else:
+        output = 2
+        print(extent0)
+        print(extent1)
+    return output
 
+#%% Combine raster files
+def combine_raster(asc_files, num_header_rows=6):
+    """Combine a list of asc files to a DEM Raster
+    asc_files: a list of asc file names
+    all raster files have the same cellsize
+    """
+    # default values for the combined Raster file
+    xllcorner_all = []
+    yllcorner_all = []
+    extent_all =[]
+    
+    # read header
+    for file in asc_files:
+        header0 = _read_header(file, num_header_rows)
+        extent0 = header2extent(header0)
+        xllcorner_all.append(header0['xllcorner'])
+        yllcorner_all.append(header0['yllcorner'])
+        extent_all.append(extent0)
+    cellsize = header0['cellsize']
+    if 'NODATA_value' in header0.keys():
+        NODATA_value = header0['NODATA_value']
+    else:
+        NODATA_value = -9999
+    xllcorner_all = np.array(xllcorner_all)
+    xllcorner = xllcorner_all.min()
+    yllcorner_all = np.array(yllcorner_all)
+    yllcorner = yllcorner_all.min()
+    extent_all = np.array(extent_all)
+    x_min = np.min(extent_all[:,0])
+    x_max = np.max(extent_all[:,1])
+    y_min = np.min(extent_all[:,2])
+    y_max = np.max(extent_all[:,3])
+#    extent = (x_min, x_max, y_min, y_max)
+#    print(extent)
+    nrows = int((y_max-y_min)/cellsize)
+    ncols = int((x_max-x_min)/cellsize)
+    header = header0.copy()
+    header['xllcorner'] = xllcorner
+    header['yllcorner'] = yllcorner
+    header['ncols'] = ncols
+    header['nrows'] = nrows
+    header['NODATA_value'] = NODATA_value
+    array = np.zeros((nrows ,ncols))+NODATA_value
+    print(array.shape)
+    for file in asc_files:
+        obj0 = Raster(file, num_header_rows=num_header_rows)
+        x0 = obj0.extent[0]+obj0.header['cellsize']/2
+        y0 = obj0.extent[3]-obj0.header['cellsize']/2
+        row0, col0 = _map2sub(x0, y0, header)
+        array[row0:row0+obj0.header['nrows'],
+              col0:col0+obj0.header['ncols']] = obj0.array
+    array[array == header['NODATA_value']] = float('nan')
+    obj_output = Raster(array=array, header=header)
+    return obj_output
+   
 #%% shapePoints= makeDiagonalShape(extent)
 def makeDiagonalShape(extent):
     #extent = (left, right, bottom, top)
@@ -818,4 +924,76 @@ def _adjust_map_extent(extent, relocate=True, scale_ratio=1):
         bottom = extent[2]/scale_ratio
         top = extent[3]/scale_ratio
     return (left, right, bottom, top)
-    
+
+def _read_header(file_name, num_header_rows=6):
+    """ Read and return a header dict from a asc file
+    read the header of an asc file and return header
+    if file_name ends with '.gz', then read the compressed file
+    """
+    # read header
+    header = {} # store header information including ncols, nrows,...
+    n=1
+    if file_name.endswith('.gz'):
+        # read header
+        with gzip.open(file_name, 'rt') as f:                
+            for line in f:
+                if n<=num_header_rows:
+                    line = line.split(" ",1)
+                    header[line[0]] = float(line[1])
+                else:
+                    break
+                n = n+1
+    else:
+        # read header
+        with open(file_name, 'rt') as f:            
+            for line in f:
+                if n<=num_header_rows:
+                    line = line.split(" ",1)
+                    header[line[0]] = float(line[1])
+                else:
+                    break
+                n = n+1
+    return header
+
+#%% rows, cols = _map2sub(X, Y, header)
+def _map2sub(X, Y, header):
+    """ convert map coordinates to subscripts of an array
+    array is defined by a geo-reference header
+    X, Y: a scalar or numpy array of coordinate values
+    Return: rows, cols in the array
+    """
+    # X and Y coordinate of the centre of the first cell in the array
+    x0 = header['xllcorner']+0.5*header['cellsize']
+    y0 = header['yllcorner']+(header['nrows']-0.5)*header['cellsize']
+    rows = (y0-Y)/header['cellsize'] # row and col number starts from 0
+    cols = (X-x0)/header['cellsize']
+    if isinstance(rows, np.ndarray):
+        rows = rows.astype('int64')
+        cols = cols.astype('int64') #.astype('int64')
+    else:
+        rows = int(rows)
+        cols = int(cols)
+    return rows, cols
+   
+#%%
+def merge(obj_origin, obj_target, resample_method='bilinear'):
+    """Merge the obj_origin to obj_target
+    assign grid values in the origin Raster to the cooresponding grid cells in
+    the target object. If cellsize are not equal, the origin Raster will be
+    firstly resampled to the target object.
+    obj_origin, obj_target: Raster objects
+    """
+    if obj_origin.header['cellsize'] != obj_target.header['cellsize']:
+        obj_origin = obj_origin.resample(obj_target.header['cellsize'], 
+                                   method=resample_method)
+#    else:
+#        obj_origin = self
+    grid_x, grid_y = obj_origin.GetXYcoordinate()
+    rows, cols = _map2sub(grid_x, grid_y, obj_target.header)
+    ind_r = np.logical_and(rows >= 0, rows <= obj_target.header['nrows']-1)
+    ind_c = np.logical_and(cols >= 0, cols <= obj_target.header['ncols']-1)
+    ind = np.logical_and(ind_r, ind_c)
+    ind = np.logical_and(ind, ~np.isnan(obj_origin.array))
+    obj_output = copy.deepcopy(obj_target)
+    obj_output.array[rows[ind], cols[ind]] = obj_origin.array[ind]
+    return obj_output

@@ -153,7 +153,6 @@ def getzMatFromNimrodTar(fileName,clipExtent=[]):
     return dtStrList,zMatList,head,zExtent
 #%% create rainfall mask and rainfall source array for HiPIMS from 
 def getRainMaskSource(tarList, demHead, datetimeStart=None, datetimeEnd=None):
-    
     """
     INPUTS
     tarList: a list of NIMROD tart files downloaded from badc

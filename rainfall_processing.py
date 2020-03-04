@@ -113,22 +113,23 @@ def create_pictures(rain_source, mask_file, cellsize=1000,
                     start_date=None, shp_file=None, **kwargs):
     """ create rainfall rate images
     rain_source
-    mask_file: a arc grid 
+    mask_file: a arc grid or a Raster object
     """
-    mask_obj = Raster(mask_file)
-    mask_obj = mask_obj.resample(cellsize,'near')
+    if type(mask_file) is str:
+        mask_file = Raster(mask_file)
+    mask_obj = mask_file.resample(cellsize, 'near')
     mask_header = mask_obj.header
     time_series = rain_source[:,0]
     rain_values = rain_source[:,1:]*1000*3600 # m/s to mm/h
     vmin = 0#rain_values.min()
-    vmax = 15#rain_values.max()
+#    vmax = 15#rain_values.max()
     # read shapefile if provided
     if shp_file is not None:
         sf = shapefile.Reader(shp_file)
     # create images
     fig_names = []
     for i in np.arange(0, time_series.size):
-        print(i)
+        print(str(i)+'/'+str(time_series.size))
         rain_array = mask_obj.array*0.0
         mask_values = np.unique(mask_obj.array).astype('int')
         for value in mask_values:
@@ -137,7 +138,7 @@ def create_pictures(rain_source, mask_file, cellsize=1000,
         rain_obj = Raster(array=rain_array, header=mask_header)
         fig_name = 'temp'+str(i)+'.png'
         fig_names.append(fig_name)
-        fig, ax = rain_obj.mapshow(vmin=vmin, vmax=vmax, **kwargs)#
+        fig, ax = rain_obj.mapshow(vmin=vmin, **kwargs)#
         if start_date is None:
             title_str = '{:.0f}'.format(time_series[i])+'s'
         else:
