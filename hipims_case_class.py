@@ -215,8 +215,14 @@ class InputHipims:
         """
         if rain_mask is None:
             rain_mask = self.attributes['precipitation_mask']
-        elif rain_mask.shape != self.Raster.array.shape:
-            raise ValueError('The shape of rainfall_mask array '
+        elif type(rain_mask) is myclass.Raster:
+            mask_on_dem = _generate_mask_for_DEM(rain_mask, self.Raster)
+            self.attributes['precipitation_mask'] = mask_on_dem.array
+        elif type(rain_mask) is np.ndarray:
+            if rain_mask.shape == self.Raster.array.shape:
+                self.attributes['precipitation_mask'] = rain_mask
+            else:
+                raise ValueError('The shape of rainfall_mask array '
                              'is not consistent with DEM')
         else:
             self.attributes['precipitation_mask'] = rain_mask
@@ -236,7 +242,6 @@ class InputHipims:
                                       rain_source[:,rain_mask_unique+1]]
             self.Summary.add_param_infor('precipitation_source', 
                                          rain_source_valid)
-        # renew summary information
 
     def set_gauges_position(self, gauges_pos=None):
         """Set coordinates of monitoring gauges
@@ -870,6 +875,7 @@ class InputHipims:
             field_dir = self.Sections[i].data_folders['field']
             for file in file_names:
                 shutil.copy2(file, field_dir)
+
 #%% sub-class definition
 class InputHipimsSub(InputHipims):
     """object for each section, child class of InputHipims
@@ -1356,6 +1362,27 @@ def _check_case_folder(case_folder):
         case_folder = case_folder+'/'
     return case_folder
 
+def _generate_mask_for_DEM(mask_origin, dem_data):
+    """Interpolate orginal mask file to the dem data
+    the interpolating method is nearest
+    """
+    if type(mask_origin) is str:
+        mask_obj = myclass.Raster(mask_origin)
+    elif type(mask_origin) is myclass.Raster:
+        mask_obj = mask_origin
+    else:
+        raise ValueError('mask_origin must be either a filename ',
+                         'string or a Raster object')
+    if type(dem_data) is str:
+        dem_obj = myclass.Raster(dem_data)
+    elif type(dem_data) is myclass.Raster:
+        dem_obj = dem_data
+    else:
+        raise ValueError('mask_origin must be either a filename ',
+                         'string or a Raster object')
+    mask_on_dem = dem_obj.grid_interpolate(mask_obj)
+    return mask_on_dem
+        
 #%% ***************************************************************************
 # *************************Public functions************************************
 def write_times_setup(case_folder=None, num_of_sections=1, time_values=None):
