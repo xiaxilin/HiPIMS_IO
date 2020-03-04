@@ -53,7 +53,7 @@ class OutputHipims:
             self.case_folder = case_folder
             self.num_of_sections = num_of_sections
             self._set_input_output_folder()
-            self._set_grid_header(self, asc_file=header_file_tag)
+            self._set_grid_header(asc_file=header_file_tag)
         elif hasattr(input_obj, 'case_folder'):
             # get information from the input object
             # case_folder, num_of_sections, header
