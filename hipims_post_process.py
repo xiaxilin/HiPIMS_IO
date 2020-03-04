@@ -52,7 +52,7 @@ class OutputHipims:
         if input_obj is None:
             self.case_folder = case_folder
             self.num_of_sections = num_of_sections
-            self._set_input_output_folder()
+            self._set_IO_folders()
             self._set_grid_header(asc_file=header_file_tag)
         elif hasattr(input_obj, 'case_folder'):
             # get information from the input object
@@ -205,7 +205,7 @@ class OutputHipims:
             array_global[ind_top:ind_bottom+1,:] = array_local
         return array_global
     
-    def _set_input_output_folder(self):
+    def _set_IO_folders(self):
         """ Set input and output folder/folders
         case_folder, num_of_sections are required
         """
@@ -242,7 +242,7 @@ class OutputHipims:
                 raise IOError('Cannot find '+asc_file)
         else: #multi-gpu model
             headers = []
-            for i in range(num_of_sections):
+            for i in np.arange(num_of_sections):
                 if asc_file is None:
                     asc_file = input_folder[i]+'/mesh/DEM.txt'
                 else:
@@ -254,7 +254,6 @@ class OutputHipims:
                 headers.append(header)
             self.header_list = headers
             self.header = _header_local2global(headers)
-            
     
     def save_object(self, file_name):
         """Save the object to a pickle file
