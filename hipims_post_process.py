@@ -156,27 +156,16 @@ class OutputHipims:
         self.gauges_pos = gauges_pos
     
     def add_grid_results(self, result_names, compressed=False):
-        """Read and add grid results to the object
+        """Read and return Raster object to attribute 'grid_results'
         result_names: string or list of string, gives the name of grid file
         """
         if not hasattr(self, 'grid_results'):
             self.grid_results = {}
         if type(result_names) is not list: # for a list of files
             result_names = [result_names]
-        if type(result_names) is list: # for a list of files
-            for file_tag in result_names:
-                grid_obj = self.read_grid_file(file_tag, compressed)
-                self.grid_results[file_tag] = grid_obj.array
-
-    def add_grid_results_obj(self, result_names, compressed=False):
-        """Read and add grid results to the object
-        result_names: string or list of string, gives the name of grid file
-        """
-        if type(result_names) is not list: # for a list of files
-            result_names = [result_names]
         for file_tag in result_names:
             grid_obj = self.read_grid_file(file_tag, compressed)
-            self.file_tag = grid_obj
+            self.grid_results[file_tag] = grid_obj
 
     def set_ref_datetime(self, date_time, str_format='%Y-%m-%d %H:%M:%S'):
         """Set the refernce datetime of the simulation
