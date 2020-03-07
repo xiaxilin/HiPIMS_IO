@@ -350,7 +350,7 @@ class Raster(object):
             cax = divider.append_axes("right", size="5%", pad=0.05)
             plt.colorbar(img, cax=cax)
         ax.axes.grid(linestyle='-.', linewidth=0.2)
-        
+        ax.set_aspect('equal', 'box')
         # save figure
         if figname is not None:
             fig.savefig(figname, dpi=dpi)

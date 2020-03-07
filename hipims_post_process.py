@@ -121,21 +121,25 @@ class OutputHipims:
         values_pd = self.times_simu.copy()
         if var_name=='h': # calculation method is min
             values = values[:, gauge_ind]
+            values_all = values+0
             values = values.max(axis=1)
             values_pd['values'] = values
         elif var_name=='hU':
             values = values[:, :, gauge_ind]
+            values_all = values+0
             values = values.sum(axis=2)*self.header['cellsize']
             values_pd['values_x'] = values[0]
             values_pd['values_y'] = values[1]
         else:
             values = values[:, gauge_ind]
+            values_all = values+0
             values_pd['values'] = values        
         if gauge_name in self.gauge_values.keys():
             gauge_dict = self.gauge_values[gauge_name]
             gauge_dict[var_name] = values_pd
         else:
             gauge_dict = {var_name:values_pd}
+        gauge_dict[var_name+'_all'] = values_all
         self.gauge_values[gauge_name] = gauge_dict
 
     def add_all_gauge(self, var_name=None):
