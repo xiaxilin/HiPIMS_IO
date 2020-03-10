@@ -156,7 +156,7 @@ class OutputHipims:
             var_name = []
         for one_var_name in var_name:
             gauges_pos, times, values = self.read_gauges_file(one_var_name)
-            self.gauge_values[var_name] = np.c_[times, values]
+            self.gauge_values[one_var_name] = np.c_[times, values]
         self.gauges_pos = gauges_pos
     
     def add_grid_results(self, result_names, compressed=False):

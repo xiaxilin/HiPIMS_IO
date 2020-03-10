@@ -10,8 +10,12 @@ Package requirements:
     # conda install -c conda-forge gdal
 Created on Tue Aug 20 11:30:15 2019
 
+command line call:
+    python um_ukmo.py input_file output_file
+        input_file: a string file name or a string with '*' 
 @author: Xiaodong Ming
 """
+import sys
 import pickle
 import iris
 import warnings
@@ -19,6 +23,7 @@ import gzip
 import copy
 import imageio
 import os
+import glob
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -47,10 +52,16 @@ class UM_ukmo(object):
         """
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-        cube_list = iris.cube.CubeList()
+            cube_list = iris.cube.CubeList()
         if type(file_name) is not list:
-            file_name = [file_name]
-        for one_file in file_name:
+            if '*' in file_name:
+                file_names = glob.glob(file_name)
+            else:
+                file_names = [file_name]
+        else:
+            file_names = file_name
+        print(file_names)
+        for one_file in file_names:
             cubes = iris.load(one_file, var_name)
             cube = cubes[0]
             cube_list.append(cube)
@@ -63,7 +74,7 @@ class UM_ukmo(object):
         # general information
         self.coord_names = coord_names
         summary = {}
-        summary['file_name'] = file_name # pp file name
+        summary['file_name'] = file_names # pp file name
         summary['var_name'] = cube.name()
         summary['data_units'] = cube.units.symbol
         time_units_str = cube.coord('time').units.name.split()
@@ -263,7 +274,7 @@ class UM_ukmo(object):
         fig_name_list = []
         for time_ind in layers:
             fig, ax = self.mapshow(time_ind, **kwarg)
-            temp_figname = 'temp_{:03d}'.format(int(time_ind))+'.png'
+            temp_figname = 'temp_{:04d}'.format(int(time_ind))+'.png'
             fig.savefig(temp_figname)
             plt.close(fig)
             fig_name_list.append(temp_figname)
@@ -339,6 +350,19 @@ def _generate_raster(x_meter, y_meter):
     obj_raster = Raster(array=np.zeros((nrows, ncols)), header=header)
     return obj_raster
 
+def main():
+    args = sys.argv
+    if len(args)==2:
+        obj_um = UM_ukmo(args[1])
+    elif len(args)>2:
+        obj_um = UM_ukmo(args[1:])
+    else:
+        obj_um = None
+        raise IOError('At least one argument is required!')
+    return obj_um
+
+if __name__=='__main__':
+    main()
 """
 Order of grid points
 Data is normally in the same order as model grid points. The values are stored row-wise i.e. data
