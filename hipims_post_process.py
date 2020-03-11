@@ -86,13 +86,14 @@ class OutputHipims:
         else: # multi-GPU
             gauges_value_all, gauges_pos = _combine_gauges_data_via_ind(
                     self.case_folder, self.num_of_sections, file_tag)
-            times = np.array(gauges_value_all['times'])
             if file_tag == 'hU':
                 values_x = np.array(gauges_value_all[0].iloc[:,:-1])
                 values_y = np.array(gauges_value_all[1].iloc[:,:-1])
                 values = np.concatenate([values_x, values_y], axis=2)
+                times = np.array(gauges_value_all[0]['times'])
             else:
                 values = np.array(gauges_value_all.iloc[:,:-1])
+                times = np.array(gauges_value_all['times'])
         self.times_simu = pd.DataFrame({'times':times})
         if hasattr(self, 'ref_datetime'):
             times_delta = times.astype('timedelta64[s]')
