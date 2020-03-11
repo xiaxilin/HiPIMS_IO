@@ -154,6 +154,7 @@ class OutputHipims:
             gauge_dict = {var_name:values_pd}
         gauge_dict[var_name+'_all'] = values_all
         self.gauge_values[gauge_name] = gauge_dict
+        self.gauges_pos = gauges_pos
     
     def add_grid_results(self, result_names, compressed=False):
         """Read and return Raster object to attribute 'grid_results'
