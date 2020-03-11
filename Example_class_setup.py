@@ -20,13 +20,8 @@ To do:
 - save and reload InputHipims objects
 """
 
-import sys
 import numpy as np
 import hipims_case_class as hp
-# position storing hipims_case_class.py and myclass.py
-scriptsPath = '/Users/ming/Dropbox/Python/HiPIMS' 
-sys.path.insert(0,scriptsPath)
-
 #%%========================= For single GPU ===================================
 # define root path for the example case
 case_folder='/Users/ming/Dropbox/Python/CaseP'
@@ -53,7 +48,7 @@ bound2_dict = {'polyPoints': bound2_points,
                'type': 'open', 'hU': [[0, 50000], [60, 30000]]}
 bound_list = [bound1_dict,bound2_dict]
 del bound1_points, bound2_points, bound1_dict, bound2_dict
-HP_obj.set_boundary_condition(bound_list)
+HP_obj.set_boundary_condition(bound_list, outline_boundary='fall')
 
 # define and set rainfall mask and source (two rainfall sources)
 rain_source = np.array([[0, 100/1000/3600, 0],

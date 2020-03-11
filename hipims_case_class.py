@@ -154,7 +154,8 @@ class InputHipims:
             1.polyPoints is a numpy array giving X(1st col) and Y(2nd col)
                 coordinates of points to define the position of a boundary.
                 An empty polyPoints means outline boundary.
-            2.type: 'open'|'rigid'
+            2.type: 'open'(flow out flatly), 'rigid'(no outlet),
+                    'fall'(water flow out like a fall)
             3.h: a two-col numpy array. The 1st col is time(s). The 2nd col is
                 water depth(m)
             4.hU: a two-col numpy array. The 1st col is time(s). The 2nd col is
@@ -1207,13 +1208,13 @@ def _setup_boundary_data_table(boundary_list, outline_boundary='open'):
     """ Initialize boundary data table based on boundary_list
     Add attributes type, extent, hSources, hUSources
     boundary_list: (list) of dict with keys polyPoints, h, hU
-    outline_boundary: (str) 'open' or 'rigid'
+    outline_boundary: (str) 'open', 'rigid', 'fall'
     """
     data_table = pd.DataFrame(columns=['type', 'extent',
                                        'hSources', 'hUSources',
                                        'h_code', 'hU_code'])
     # set default outline boundary [0]
-    if outline_boundary == 'open':
+    if outline_boundary == 'fall':
         hSources = np.array([[0, 0], [1, 0]])
         hUSources = np.array([[0, 0, 0], [1, 0, 0]])
         data_table = data_table.append({'type':'open', 'extent':None,
@@ -1224,8 +1225,12 @@ def _setup_boundary_data_table(boundary_list, outline_boundary='open'):
         data_table = data_table.append({'type':'rigid', 'extent':None,
                                         'hSources':None, 'hUSources':None},
                                        ignore_index=True)
+    elif outline_boundary == 'open':
+        data_table = data_table.append({'type':'open', 'extent':None,
+                                        'hSources':None, 'hUSources':None},
+                                       ignore_index=True)
     else:
-        raise ValueError("outline_boundary must be either open or rigid!")
+        raise ValueError("outline_boundary must be fal, open or rigid!")
     # convert boundary_list to a dataframe
     bound_ind = 1  # bound index
     if boundary_list is None:
