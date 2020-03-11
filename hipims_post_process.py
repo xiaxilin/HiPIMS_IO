@@ -313,14 +313,14 @@ def _combine_gauges_data_via_ind(case_folder, num_section, file_tag):
             values = t_value[:,1:]
             times = t_value[:, 0]
             if file_tag == 'hU':
-                gauges_value_x['Time'] = times
-                gauges_value_y['Time'] = times
+                gauges_value_x['times'] = times
+                gauges_value_y['times'] = times
                 values_x = values[:, 0::2]
                 values_y = values[:, 1::2]
                 gauges_value_x.iloc[0:values.shape[0], ind_list[i]] = values_x
                 gauges_value_y.iloc[0:values.shape[0], ind_list[i]] = values_y
             else:
-                gauges_value['Time'] = times
+                gauges_value['times'] = times
                 gauges_value.iloc[0:values.shape[0], ind_list[i]] = values        
     return gauges_value, gauges_pos_all
     
