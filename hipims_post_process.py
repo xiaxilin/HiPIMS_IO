@@ -89,7 +89,7 @@ class OutputHipims:
             if file_tag == 'hU':
                 values_x = np.array(gauges_value_all[0].iloc[:,:-1])
                 values_y = np.array(gauges_value_all[1].iloc[:,:-1])
-                values = np.concatenate([values_x, values_y], axis=2)
+                values = np.array([values_x, values_y])
                 times = np.array(gauges_value_all[0]['times'])
             else:
                 values = np.array(gauges_value_all.iloc[:,:-1])
