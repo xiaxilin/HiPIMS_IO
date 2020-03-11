@@ -84,8 +84,15 @@ class OutputHipims:
             times, values = _read_one_gauge_file(gauge_output_file)
             gauges_pos = np.loadtxt(gauge_pos_file, dtype='float64', ndmin=2)
         else: # multi-GPU
-            gauges_pos, times, values = _combine_multi_gpu_gauges_data(
-                    self.header_list, self.case_folder, file_tag)
+            gauges_value_all, gauges_pos = _combine_gauges_data_via_ind(
+                    self.case_folder, self.num_of_sections, file_tag)
+            times = np.array(gauges_value_all['times'])
+            if file_tag == 'hU':
+                values_x = np.array(gauges_value_all[0].iloc[:,:-1])
+                values_y = np.array(gauges_value_all[1].iloc[:,:-1])
+                values = np.concatenate([values_x, values_y], axis=2)
+            else:
+                values = np.array(gauges_value_all.iloc[:,:-1])
         self.times_simu = pd.DataFrame({'times':times})
         if hasattr(self, 'ref_datetime'):
             times_delta = times.astype('timedelta64[s]')
@@ -111,20 +118,25 @@ class OutputHipims:
         grid_obj = Raster(array=grid_array, header=self.header)
         return grid_obj
     
-    def add_gauge_results(self, gauge_name, gauge_ind, var_name, 
+    def add_gauge_results(self, var_name, gauge_name='All', gauge_ind=None,  
                           compressed=False):
-        """ add simulated value to the object gauge by gauge 
+        """ add simulated value to the object gauge by gauge
+        var_name: 'h', 'hU', 'eta'
+        gauge_name: 'All' add all gauges, then gauge_ind not needed
         """
         if not hasattr(self, 'gauge_values'):
             self.gauge_values = {}
-        _, _, values = self.read_gauges_file(var_name, compressed)
+        gauges_pos, _, values = self.read_gauges_file(var_name, compressed)
         values_pd = self.times_simu.copy()
-        if var_name=='h': # calculation method is min
+        if gauge_ind is None:
+            gauge_ind = np.arange(gauges_pos.shape[0])
+            gauge_name = 'All'
+        if var_name == 'h': # calculation method is min
             values = values[:, gauge_ind]
             values_all = values+0
             values = values.max(axis=1)
             values_pd['values'] = values
-        elif var_name=='hU':
+        elif var_name == 'hU':
             values = values[:, :, gauge_ind]
             values_all = values+0
             values = values.sum(axis=2)*self.header['cellsize']
@@ -141,23 +153,6 @@ class OutputHipims:
             gauge_dict = {var_name:values_pd}
         gauge_dict[var_name+'_all'] = values_all
         self.gauge_values[gauge_name] = gauge_dict
-
-    def add_all_gauge(self, var_name=None):
-        """ add all gauges as seperate records
-        suitable for each gauge position individually represent one 
-        gauge
-        var_name: 'h', 'hU', 'eta' if not given, then add both h and hU
-        """
-        if not hasattr(self, 'gauge_values'):
-            self.gauge_values = {}
-        if var_name is None:
-            var_name = ['h', 'hU', 'eta']
-        elif type(var_name) is not list:
-            var_name = []
-        for one_var_name in var_name:
-            gauges_pos, times, values = self.read_gauges_file(one_var_name)
-            self.gauge_values[one_var_name] = np.c_[times, values]
-        self.gauges_pos = gauges_pos
     
     def add_grid_results(self, result_names, compressed=False):
         """Read and return Raster object to attribute 'grid_results'
@@ -283,6 +278,51 @@ def save_object(obj, file_name, compression=True):
     print(file_name+' has been saved')
     
 #%% =======================Supporting functions===============================
+def _combine_gauges_data_via_ind(case_folder, num_section, file_tag):
+    """Combine gauges outputs from multi-gpu models according to gauges
+    position index.
+    gauge_ind.dat
+    gauge_pos.dat in each subdoamin input/field folder
+    """
+    # read index
+    ind_list =[]
+    ind_max = 0
+    gauges_pos_all = []
+    for i in range(num_section):
+        gauge_ind_file = case_folder+'/'+str(i)+'/input/field/gauges_ind.dat'
+        ind_1 = np.loadtxt(gauge_ind_file, dtype='int')
+        if ind_1.size>0:
+            ind_max = max(ind_max, ind_1.max())
+            file_name = case_folder+'/'+str(i)+'/input/field/gauges_pos.dat'
+            gauge_xy = np.loadtxt(file_name, dtype='float64', ndmin=2)
+            gauges_pos_all.append(gauge_xy)
+        ind_list.append(ind_1)
+    gauges_pos_all = np.concatenate(gauges_pos_all, axis=0)
+    num_gauges = ind_max+1
+    if file_tag == 'hU':
+        gauges_value_x = pd.DataFrame(columns=np.arange(num_gauges))
+        gauges_value_y = pd.DataFrame(columns=np.arange(num_gauges))
+        gauges_value = [gauges_value_x, gauges_value_y]
+    else:
+        gauges_value = pd.DataFrame(columns=np.arange(num_gauges))
+    for i in range(num_section):
+        file_name = case_folder+'/'+str(i)+'/output/'+file_tag+'_gauges.dat'
+        if ind_list[i].size>0:
+            t_value = np.loadtxt(file_name, dtype='float64', ndmin=2)
+            values = t_value[:,1:]
+            times = t_value[:, 0]
+            if file_tag == 'hU':
+                gauges_value_x['Time'] = times
+                gauges_value_y['Time'] = times
+                values_x = values[:, 0::2]
+                values_y = values[:, 1::2]
+                gauges_value_x.iloc[0:values.shape[0], ind_list[i]] = values_x
+                gauges_value_y.iloc[0:values.shape[0], ind_list[i]] = values_y
+            else:
+                gauges_value['Time'] = times
+                gauges_value.iloc[0:values.shape[0], ind_list[i]] = values        
+    return gauges_value, gauges_pos_all
+    
 def _combine_multi_gpu_gauges_data(header_list, case_folder, file_tag):
     """ Combine gauges outputs from multi-gpu models according to gauges
     position data.
