@@ -24,12 +24,15 @@ import copy
 import imageio
 import os
 import glob
+import gc
 import numpy as np
 import pandas as pd
+import grid_show as gs
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import iris.plot as iplt
 from myclass import Raster
+
 #%% grid data for HiPIMS input format
 class UM_ukmo(object):
     """
@@ -90,6 +93,7 @@ class UM_ukmo(object):
         time_num = cube.coord('time').points
         self.date_time = pd.to_datetime(time_units.num2date(time_num))
         self.time_from_ref = time_num-ref_time_num # use time_units(hours)
+        self.shape = self.cube.shape
 
     def save_object(self, filename=None):
         """
@@ -217,50 +221,53 @@ class UM_ukmo(object):
             y_meter[ind2d] = y0
         return x_meter, y_meter
 #============================Visulization======================================    
-    def mapshow(self, layer_index, title_str=None, projected=True,
+    def mapshow(self, layer_index, title_str=None, shape_file=None,
                 figsize=None, cmap='YlGnBu', **kwarg):
         """Plot the grided value of rainfall
         layer_index: (int) the number reprenting time layers
         projected: True to show km grid, False to show lan/lon grid
         """
-        fig = plt.figure(figsize=figsize)
-        if projected:
-            map_prj = ccrs.OSGB()
-        else:
+        if not hasattr(self, 'header'):
+            # use iris to plot map
+            data = copy.deepcopy(self.cube[layer_index])
+            data.data = data.data*3600 # to mm/h
+            data.data[data.data == 0] = np.nan
+            fig = plt.figure(figsize=figsize)
             map_prj = ccrs.PlateCarree()
-        ax = plt.axes(projection=map_prj)
-        ax.coastlines(linewidth=0.75, color='red')
-        ax.gridlines(crs=map_prj, linestyle='-')
-        data = copy.deepcopy(self.cube[layer_index])
-        data.data = data.data*3600 # to mm/h
-        data.data[data.data == 0] = np.nan
-        im = iplt.pcolormesh(data, cmap=cmap, **kwarg)
-        cax = fig.add_axes()
-        fig.colorbar(im, cax=cax, orientation='vertical')
-#        cax.set_xlabel('mm/h', va='top')
+            ax = plt.axes(projection=map_prj)            
+            ax.coastlines(linewidth=0.5, color='black', resolution='50m')
+            im = iplt.pcolormesh(data, cmap=cmap, **kwarg)
+            cax = fig.add_axes()
+            fig.colorbar(im, cax=cax, orientation='vertical')
+#            plt.axis('on')
+            ax.gridlines(crs=map_prj, linestyle='--')
+            xticks = ax.get_xticks()
+            ax.set_xticks(xticks)
+            yticks = ax.get_yticks()
+            ax.set_yticks(yticks)
+            ax.set_xlabel('longitude (degree)')
+            ax.set_ylabel('latitude (degree)')           
+        else:
+            # Already projected to OSGB, use grid_show to plot map
+            data = self.cube[layer_index].data
+            data = data*3600
+            data[data == 0] = np.nan
+            header = self.header
+            obj_ras = Raster(header=header, array=data)
+            extent = obj_ras.extent
+            if extent[1]-extent[0] > 10000:
+                scale_ratio = 1000
+            else:
+                scale_ratio = 1
+            fig, ax = gs.mapshow(obj_ras, cmap=cmap, scale_ratio=scale_ratio,
+                                 **kwarg)
+            obj_ras = None
+            if shape_file is not None:
+                gs.plot_shape_file(shape_file, ax=ax)
         if title_str is None:
             dt = self.date_time[layer_index]
             title_str = dt.strftime('%Y-%m-%d %H:%M')
-        ax.set_title(title_str)
-        ax.axes.grid(linestyle='-.', linewidth=0.2)
-        xticks_label = ax.get_xticks()
-        yticks_label = ax.get_yticks()
-        ax.set_xticks(xticks_label)
-        ax.set_yticks(yticks_label)
-        ax.set_xticklabels(xticks_label)
-        ax.set_yticklabels(yticks_label)
-        if projected:
-            if xticks_label.max()-xticks_label.min()>10000:    
-                ax.set_xticklabels((xticks_label/1000).astype('int64'))
-                ax.set_yticklabels((yticks_label/1000).astype('int64'))
-                ax.set_xlabel('km towards east')
-                ax.set_ylabel('km towards north')
-            else:
-                ax.set_xlabel('meter towards east')
-                ax.set_ylabel('meter towards north')
-        else:
-            ax.set_xlabel('longitude (degree)')
-            ax.set_ylabel('latitude (degree)')
+            ax.set_title(title_str)
         return fig, ax
     
     def gif_generator(self, output_file, layers=None, duration=0.5, **kwarg):
@@ -287,6 +294,39 @@ class UM_ukmo(object):
         if not output_file.endswith('.gif'):
             output_file = output_file+'.gif'
         imageio.mimsave(output_file, images, duration=duration)
+    
+    def video_generator(self, output_file, layers=None, fps=10, **kwarg):
+        """Make a mp4 video to show rainfall rates
+        """
+        if layers is None:
+            layers = np.arange(self.cube.shape[0])
+#        fig_name_list = []
+        i_seq = 0
+#        import time
+        for time_ind in layers: 
+            temp_figname = 'temp_{:04d}'.format(int(time_ind))+'.png'
+            fig, _ = self.mapshow(time_ind, **kwarg)
+            fig.savefig(temp_figname)
+            plt.close(fig)
+#            fig_name_list.append(temp_figname)
+            print(temp_figname)
+            i_seq = i_seq+1
+            if i_seq%10 == 0:
+                gc.collect()
+                gc.garbage
+#                time.sleep(2)
+                
+        if not output_file.endswith('.mp4'):
+            output_file = output_file+'.mp4'
+        print('creating '+output_file+'...')
+        fig_name_list = glob.glob('temp_*.png')
+        fig_name_list.sort()
+        writer = imageio.get_writer(output_file, 'MP4', fps=fps)
+        for fig_name in fig_name_list:
+            writer.append_data(imageio.imread(fig_name))
+            os.remove(fig_name)
+        writer.close()
+        print('Done!')
 
 def load_object(filename):
     """
