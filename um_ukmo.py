@@ -295,37 +295,38 @@ class UM_ukmo(object):
             output_file = output_file+'.gif'
         imageio.mimsave(output_file, images, duration=duration)
     
-    def video_generator(self, output_file, layers=None, fps=10, **kwarg):
+    def video_generator(self, output_file, layers=None, fps=10, dpi=100,
+                        **kwarg):
         """Make a mp4 video to show rainfall rates
         """
         if layers is None:
             layers = np.arange(self.cube.shape[0])
-#        fig_name_list = []
+        fig_name_list = []
         i_seq = 0
 #        import time
         for time_ind in layers: 
             temp_figname = 'temp_{:04d}'.format(int(time_ind))+'.png'
             fig, _ = self.mapshow(time_ind, **kwarg)
-            fig.savefig(temp_figname)
+            fig.savefig(temp_figname, dpi=dpi)
             plt.close(fig)
-#            fig_name_list.append(temp_figname)
+            fig = None
+            fig_name_list.append(temp_figname)
             print(temp_figname)
             i_seq = i_seq+1
             if i_seq%10 == 0:
                 gc.collect()
-                gc.garbage
-#                time.sleep(2)
-                
+                gc.garbage                
         if not output_file.endswith('.mp4'):
             output_file = output_file+'.mp4'
         print('creating '+output_file+'...')
-        fig_name_list = glob.glob('temp_*.png')
-        fig_name_list.sort()
+#        fig_name_list = glob.glob('temp_*.png')
+#        fig_name_list.sort()
         writer = imageio.get_writer(output_file, 'MP4', fps=fps)
         for fig_name in fig_name_list:
             writer.append_data(imageio.imread(fig_name))
             os.remove(fig_name)
         writer.close()
+        fig_name_list = None
         print('Done!')
 
 def load_object(filename):
