@@ -22,6 +22,7 @@ import shapefile
 import imageio
 import numpy as np
 import matplotlib.pyplot as plt
+plt.switch_backend('agg')
 import matplotlib.colors as colors
 from matplotlib import cm
 from matplotlib.colors import ListedColormap
