@@ -8,6 +8,7 @@ Package requirements:
     # conda install -c conda-forge iris
     # conda install -c conda-forge/label/gcc7 mo_pack
     # conda install -c conda-forge gdal
+    # conda install -c conda-forge imageio-ffmpeg
 Created on Tue Aug 20 11:30:15 2019
 
 command line call:

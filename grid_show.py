@@ -179,7 +179,7 @@ def make_gif(output_file, obj_list=None, header=None, array_3d=None,
     imageio.mimsave(output_file, images, duration=duration)
 
 def make_mp4(output_file, obj_list=None, header=None, array_3d=None, 
-               time_str=None, breaks=None,
+               time_str=None, breaks=None, fig_names=None,
                fps=10, **kwargs):
     """ Create a video file based on a series of grids
     obj_list: a list of Raster objects
@@ -189,8 +189,9 @@ def make_mp4(output_file, obj_list=None, header=None, array_3d=None,
                 (in 1st dimension), [not necessary if obj_list was given]
     time_str: a list of string to show time information for each frame
     """
-    fig_names = _plot_temp_figs(obj_list, header, array_3d, breaks,
-                                time_str, **kwargs)
+    if fig_names is None:
+        fig_names = _plot_temp_figs(obj_list, header, array_3d, breaks,
+                                    time_str, **kwargs)
     if not output_file.endswith('.mp4'):
         output_file = output_file+'.mp4'
     print(output_file)
