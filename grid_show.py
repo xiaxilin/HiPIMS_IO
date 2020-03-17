@@ -24,12 +24,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 plt.switch_backend('agg')
 import matplotlib.colors as colors
+import myclass
 from matplotlib import cm
 from matplotlib.colors import ListedColormap
 from matplotlib.patches import Patch
 from matplotlib.colors import LightSource
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from myclass import Raster
 
 #%% draw inundation map with domain outline
 def mapshow(raster_obj=None, array=None, header=None, ax=None,
@@ -47,7 +47,7 @@ def mapshow(raster_obj=None, array=None, header=None, ax=None,
     **kwargs: keywords argument of function imshow
     """
     if raster_obj is None:
-        raster_obj = Raster(array=array, header=header)
+        raster_obj = myclass.Raster(array=array, header=header)
     # change NODATA_value to nan
     np.warnings.filterwarnings('ignore')
     array = raster_obj.array+0
@@ -135,7 +135,7 @@ def hillshade(raster_obj, figsize=None, azdeg=315, altdeg=45, vert_exag=1,
     ax.set_axis_off()
     return fig, ax
 
-def vectorshow(obj_x, obj_y, figname=None, figsize=None, dpi=300, **kw):
+def vectorshow(obj_x, obj_y, figname=None, figsize=None, dpi=300, **kwargs):
     """
     plot velocity map of U and V, whose values stored in two raster
     objects seperately
@@ -144,9 +144,9 @@ def vectorshow(obj_x, obj_y, figname=None, figsize=None, dpi=300, **kw):
     U = obj_x.array
     V = obj_y.array
     if U.shape!=V.shape:
-        raise TypeError('bad argument: header')
-    if 'figsize' in kw:
-        figsize = kw['figsize']
+        raise TypeError('bad argument: the shapes must be the same')
+    if 'figsize' in kwargs:
+        figsize = kwargs['figsize']
     else:
         figsize = None
     fig, ax = plt.subplots(1, figsize=figsize)
@@ -249,7 +249,7 @@ def _plot_temp_figs(obj_list=None, header=None, array_3d=None,
         kwargs['breaks']=breaks
     fig_names = []
     for i in np.arange(array_3d.shape[0]):
-        grid_obj = Raster(header=header, array=array_3d[i])
+        grid_obj = myclass.Raster(header=header, array=array_3d[i])
         fig_name = 'temp'+str(i)+'.png'
         fig, ax = plot_fun(grid_obj, **kwargs)
         if type(time_str) is list:
@@ -332,3 +332,9 @@ def _adjust_axis_tick(ax, relocate=True, scale_ratio=1):
     ax.set_xlabel(label_tag+' towards east')
     ax.set_ylabel(label_tag+' towards north')
     return None
+
+def main():
+    print('Package to show grid data')
+
+if __name__=='__main__':
+    main()

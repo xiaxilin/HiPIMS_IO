@@ -70,8 +70,9 @@ def plot_time_series(rain_source, method='mean', **kwargs):
     value_y = plot_data[:,1]
     fig, ax = plt.subplots()
     ax.plot(time_x,value_y)
-    ax.xaxis.set_major_locator(mdates.DayLocator(interval=1))
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d"))
+    if 'start_date' in kwargs.keys():
+        ax.xaxis.set_major_locator(mdates.DayLocator(interval=1))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d"))
     ax.set_ylabel('Rainfall rate (mm/h)')
     ax.grid(True)
     title_str = method+' precipitation in the model domain'

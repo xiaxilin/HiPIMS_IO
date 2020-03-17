@@ -11,15 +11,9 @@ import copy
 import gzip
 import math
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.colors as colors
 from osgeo import ogr
-from matplotlib import cm
-from matplotlib.colors import ListedColormap
-from matplotlib.patches import Patch
-from matplotlib.colors import LightSource
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy import interpolate
+import grid_show as gs
 #%% *******************************To deal with raster data********************
 #   ***************************************************************************    
 class Raster(object):
@@ -288,7 +282,7 @@ class Raster(object):
                                             (grid_x, grid_y), method=method)
         return array_interp
     
-    def GridResample(self,newsize):
+    def GridResample(self, newsize):
         """
         resample a grid to a new grid resolution via nearest interpolation
         """
@@ -315,12 +309,33 @@ class Raster(object):
         zNew = zNew.astype(zMat.dtype)
 #        extent_new = header2extent(head_new)
         new_obj = Raster(array=zNew, header=head_new)
-        return new_obj 
+        return new_obj
+    
+    def assign_to(self, new_header, method='nearest'):
+        """ Assign_to the object to a new grid defined by new_header 
+        If cellsize are not equal, the origin Raster will be firstly 
+        resampled to the target grid.
+        obj_origin, obj_target: Raster objects
+        """
+        obj_origin = copy.deepcopy(self)
+        if obj_origin.header['cellsize'] != new_header['cellsize']:
+            obj_origin = obj_origin.resample(new_header['cellsize'],
+                                             method='bilinear')
+        grid_x, grid_y = obj_origin.GetXYcoordinate()
+        rows, cols = _map2sub(grid_x, grid_y, new_header)
+        ind_r = np.logical_and(rows >= 0, rows <= new_header['nrows']-1)
+        ind_c = np.logical_and(cols >= 0, cols <= new_header['ncols']-1)
+        ind = np.logical_and(ind_r, ind_c)
+#        ind = np.logical_and(ind, ~np.isnan(obj_origin.array))
+        array = obj_origin.array[ind]
+        array = np.reshape(array, (new_header['nrows'], new_header['ncols']))
+#        array[rows[ind], cols[ind]] = obj_origin.array[ind]
+        obj_output = Raster(array=array, header=new_header)
+        return obj_output
          
 #%%=============================Visualization==================================
     #%% draw inundation map with domain outline
-    def mapshow(self, figname=None, figsize=None, dpi=300, vmin=None, vmax=None, 
-                cax=True, dem_array=None, relocate=False, scale_ratio=1):
+    def mapshow(self, **kwargs):
         """
         Display raster data without projection
         figname: the file name to export map, if figname is empty, then
@@ -328,117 +343,31 @@ class Raster(object):
         figsize: the size of map
         dpi: The resolution in dots per inch
         vmin and vmax define the data range that the colormap covers
+        figname=None, figsize=None, dpi=300, vmin=None, vmax=None, 
+                cax=True, dem_array=None, relocate=False, scale_ratio=1
         """
-        np.warnings.filterwarnings('ignore')    
-        fig, ax = plt.subplots(1, figsize=figsize)
-        # draw grid data
-        if dem_array is  None:
-            dem_array = self.array+0
-        ind = dem_array == self.header['NODATA_value']
-        if ind.sum()>0:
-            dem_array = dem_array.astype('float32')
-            dem_array[ind]=np.nan
-        # adjust tick label and axis label
-        map_extent = self.extent
-        map_extent = _adjust_map_extent(map_extent, relocate, scale_ratio)
-        img=plt.imshow(dem_array, extent=map_extent, vmin=vmin, vmax=vmax)
-        # colorbar
-    	# create an axes on the right side of ax. The width of cax will be 5%
-        # of ax and the padding between cax and ax will be fixed at 0.05 inch.
-        if cax==True:
-            divider = make_axes_locatable(ax)
-            cax = divider.append_axes("right", size="5%", pad=0.05)
-            plt.colorbar(img, cax=cax)
-        ax.axes.grid(linestyle='-.', linewidth=0.2)
-        ax.set_aspect('equal', 'box')
-        # save figure
-        if figname is not None:
-            fig.savefig(figname, dpi=dpi)
-            
+        fig, ax = gs.mapshow(raster_obj=self, **kwargs)
         return fig, ax
     
-    def rank_show(self,figname=None, figsize=None, dpi=300, 
-                breaks=[0.2, 0.3, 0.5, 1, 2], 
-                show_colorbar=True, show_colorlegend=False,
-                dem_array=None, relocate=False, scale_ratio=1):
+    def rankshow(self, **kwargs):
         """ Display water depth map in a range defined by (d_min, d_max)
         """
-        np.warnings.filterwarnings('ignore')    
-        if breaks[0] > np.nanmin(self.array):
-            breaks.insert(0, np.nanmin(self.array))
-        if breaks[-1] < np.nanmax(self.array):
-            breaks.append(np.nanmax(self.array))        
-        norm = colors.BoundaryNorm(breaks, len(breaks))
-        blues = cm.get_cmap('Blues', norm.N)
-        newcolors = blues(np.linspace(0, 1, norm.N))
-        white = np.array([255/256, 255/256, 255/256, 1])
-        newcolors[0, :] = white
-        newcmp = ListedColormap(newcolors)
-        map_extent = self.extent
-        map_extent = _adjust_map_extent(map_extent, relocate, scale_ratio)
-#        cellsize = self.header['cellsize']
-        if dem_array is not None:
-            array = dem_array+0
-            array[np.isnan(array)] = np.nanmin(self.array)
-            ls = LightSource(azdeg=315, altdeg=45)
-            cmap = plt.cm.gist_gray
-            fig, ax = plt.subplots(figsize=figsize)
-            rgb = ls.shade(array, cmap=cmap,
-                           blend_mode='overlay',vert_exag=5)
-            ax.imshow(rgb, extent=map_extent)
-#            ax.set_axis_off()
-        else:
-            fig, ax = plt.subplots(figsize=figsize)
-
-        chm_plot = ax.imshow(self.array, extent=map_extent, 
-                             cmap=newcmp, norm=norm, alpha=0.7)
-        # create colorbar
-        if show_colorbar is True:
-            _set_colorbar(ax, chm_plot, norm)
-        if show_colorlegend is True: # legend
-            _set_color_legend(ax, norm, newcmp)
-#        plt.show()
-        # save figure
-        if figname is not None:
-            fig.savefig(figname, dpi=dpi)
+        fig, ax = gs.rankshow(self, **kwargs)
         return fig, ax
     
-    def hillshade_show(self,figsize=None,azdeg=315, altdeg=45, vert_exag=1):
+    def hillshade(self, **kwargs):
         """ Draw a hillshade map
         """
-        array = self.array+0
-        array[np.isnan(array)]=0
-        ls = LightSource(azdeg=azdeg, altdeg=altdeg)
-        cmap = plt.cm.gist_earth
-        fig, ax = plt.subplots(figsize=figsize)
-        rgb = ls.shade(array, cmap=cmap, 
-                       blend_mode='overlay',vert_exag=vert_exag)
-        ax.imshow(rgb)
-        ax.set_axis_off()
-#        plt.show()
+        fig, ax = gs.hillshade(self, **kwargs)
         return fig, ax
 
     #%% draw velocity (vector) map
-    def VelocityShow(self, other, figname=None, figsize=None, dpi=300, **kw):
+    def vectorshow(self, obj_y, **kwargs):
         """
         plot velocity map of U and V, whose values stored in two raster
         objects seperately
         """
-        X, Y = self.GetXYcoordinate()        
-        U = self.array
-        V = other.array
-        if U.shape!=V.shape:
-            raise TypeError('bad argument: header')
-        if 'figsize' in kw:
-            figsize = kw['figsize']
-        else:
-            figsize = None
-        fig, ax = plt.subplots(1, figsize=figsize)
-        plt.quiver(X, Y, U, V)
-        ax.set_aspect('equal', 'box')
-        ax.tick_params(axis='y', labelrotation=90)
-        if figname is not None:
-            fig.savefig(figname, dpi=dpi)
+        fig, ax = gs.vectorshow(self, obj_y, **kwargs)
         return fig, ax
 #%%===============================output=======================================
     
@@ -869,62 +798,6 @@ def header2extent(demHead):
     extent = (left, right, bottom, top)
     return extent         
 
-def _set_colorbar(ax,img,norm):
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes("right", size="5%", pad=0.05)
-    plt.colorbar(img, cax=cax)
-    y_tick_values = cax.get_yticks()
-    boundary_means = [np.mean((y_tick_values[ii],y_tick_values[ii-1])) 
-                        for ii in range(1, len(y_tick_values))]
-    category_names = [(str(norm.boundaries[ii-1])+'~'+
-                       str(norm.boundaries[ii]))
-                      for ii in range(1, len(norm.boundaries))]
-    category_names[0] = '<='+str(norm.boundaries[1])
-    category_names[-1] = '>'+str(norm.boundaries[-2])
-    cax.yaxis.set_ticks(boundary_means)
-    cax.yaxis.set_ticklabels(category_names,rotation=0)
-    return cax
-
-def _set_color_legend(ax, norm, cmp, 
-                      loc='lower right', bbox_to_anchor=(1,0),
-                      facecolor=None):
-    category_names = [(str(norm.boundaries[ii-1])+'~'+
-                       str(norm.boundaries[ii]))
-                      for ii in range(1, len(norm.boundaries))]
-    category_names[0] = '<='+str(norm.boundaries[1])
-    category_names[-1] = '>'+str(norm.boundaries[-2])
-    ii = 0
-    legend_labels = {}
-    for category_name in category_names:
-        legend_labels[category_name] = cmp.colors[ii,]
-        ii = ii+1
-    patches = [Patch(color=color, label=label)
-               for label, color in legend_labels.items()]
-    ax.legend(handles=patches, loc=loc,
-              bbox_to_anchor=bbox_to_anchor,
-              facecolor=facecolor)
-    return ax
-
-def _adjust_map_extent(extent, relocate=True, scale_ratio=1):
-    """
-    Adjust the extent (left, right, bottom, top) to a new staring point 
-        and new unit. extent values will be divided by the scale_ratio
-    Example:
-        if scale_ratio = 1000, and the original extent unit is meter,
-        then the unit is converted to km, and the extent is divided by 1000
-    """
-    if relocate:
-        left = 0 
-        right = (extent[1]-extent[0])/scale_ratio
-        bottom = 0
-        top = (extent[3]-extent[2])/scale_ratio
-    else:
-        left = extent[0]/scale_ratio
-        right = extent[1]/scale_ratio
-        bottom = extent[2]/scale_ratio
-        top = extent[3]/scale_ratio
-    return (left, right, bottom, top)
-
 def _read_header(file_name, num_header_rows=6):
     """ Read and return a header dict from a asc file
     read the header of an asc file and return header
@@ -997,3 +870,11 @@ def merge(obj_origin, obj_target, resample_method='bilinear'):
     obj_output = copy.deepcopy(obj_target)
     obj_output.array[rows[ind], cols[ind]] = obj_origin.array[ind]
     return obj_output
+
+def main():
+    print('Package to deal with raster data')
+
+if __name__=='__main__':
+    main()
+    
+    
