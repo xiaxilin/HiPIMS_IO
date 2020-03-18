@@ -60,11 +60,12 @@ def get_time_series(rain_source, rain_mask=None,
     plot_data = np.c_[time_x,value_y]
     return plot_data
 
-def plot_time_series(rain_source, method='mean', **kwargs):
+def plot_time_series(rain_source, method='mean', add_scatter=False, **kwargs):
     """ Plot time series of average rainfall rate inside the model domain   
     method: 'mean'|'max','min','mean'method to calculate gridded rainfall 
     over the model domain
     """
+    value_y_all = rain_source[:,1:]*3600*1000
     plot_data = get_time_series(rain_source, method=method, **kwargs)
     time_x = plot_data[:,0]
     value_y = plot_data[:,1]
@@ -73,8 +74,15 @@ def plot_time_series(rain_source, method='mean', **kwargs):
     if 'start_date' in kwargs.keys():
         ax.xaxis.set_major_locator(mdates.DayLocator(interval=1))
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d"))
-    ax.set_ylabel('Rainfall rate (mm/h)')
+    ax.set_ylabel(method+' rainfall rate (mm/h)')
     ax.grid(True)
+    if add_scatter:
+        ax1 = ax.twinx()
+        for i in np.arange(value_y_all.shape[1]):
+#            print(time_x.shape)
+            ax1.scatter(time_x, value_y_all[:,i], c='b', s=5,
+                        marker='+', alpha=0.5)
+        ax1.set_ylabel('individual rainfall rate (mm/h)')
     title_str = method+' precipitation in the model domain'
     ax.set_title(title_str)
     plt.show()

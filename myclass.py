@@ -311,7 +311,7 @@ class Raster(object):
         new_obj = Raster(array=zNew, header=head_new)
         return new_obj
     
-    def assign_to(self, new_header, method='nearest'):
+    def assign_to(self, new_header):
         """ Assign_to the object to a new grid defined by new_header 
         If cellsize are not equal, the origin Raster will be firstly 
         resampled to the target grid.
@@ -319,8 +319,7 @@ class Raster(object):
         """
         obj_origin = copy.deepcopy(self)
         if obj_origin.header['cellsize'] != new_header['cellsize']:
-            obj_origin = obj_origin.resample(new_header['cellsize'],
-                                             method='bilinear')
+            obj_origin = obj_origin.GridResample(new_header['cellsize'])
         grid_x, grid_y = obj_origin.GetXYcoordinate()
         rows, cols = _map2sub(grid_x, grid_y, new_header)
         ind_r = np.logical_and(rows >= 0, rows <= new_header['nrows']-1)
