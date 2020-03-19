@@ -61,6 +61,7 @@ class OutputHipims:
             self.num_of_sections = input_obj.num_of_sections
             self.header = input_obj.Raster.header
             self.Summary = input_obj.Summary
+            self._set_grid_header(asc_file=header_file_tag)
         else:
             raise IOError('The first argument (input_obj) must be '+
                           'a InputHipims object')
