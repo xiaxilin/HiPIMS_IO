@@ -217,8 +217,8 @@ class InputHipims:
         if rain_mask is None:
             rain_mask = self.attributes['precipitation_mask']
         elif type(rain_mask) is myclass.Raster:
-            mask_array = _generate_mask_for_DEM(rain_mask, self.Raster)
-            self.attributes['precipitation_mask'] = mask_array
+            rain_mask = _generate_mask_for_DEM(rain_mask, self.Raster)
+            self.attributes['precipitation_mask'] = rain_mask
         elif type(rain_mask) is np.ndarray:
             if rain_mask.shape == self.Raster.array.shape:
                 self.attributes['precipitation_mask'] = rain_mask
