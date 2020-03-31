@@ -217,8 +217,8 @@ class InputHipims:
         if rain_mask is None:
             rain_mask = self.attributes['precipitation_mask']
         elif type(rain_mask) is myclass.Raster:
-            mask_on_dem = _generate_mask_for_DEM(rain_mask, self.Raster)
-            self.attributes['precipitation_mask'] = mask_on_dem.array
+            mask_array = _generate_mask_for_DEM(rain_mask, self.Raster)
+            self.attributes['precipitation_mask'] = mask_array
         elif type(rain_mask) is np.ndarray:
             if rain_mask.shape == self.Raster.array.shape:
                 self.attributes['precipitation_mask'] = rain_mask
@@ -1385,8 +1385,14 @@ def _generate_mask_for_DEM(mask_origin, dem_data):
     else:
         raise ValueError('mask_origin must be either a filename ',
                          'string or a Raster object')
-    mask_on_dem = dem_obj.grid_interpolate(mask_obj)
-    return mask_on_dem
+    if mask_origin.header == dem_data.header:
+        mask_array = mask_origin.array+0
+        mask_origin = None
+    else:
+        mask_on_dem = dem_obj.grid_interpolate(mask_obj)
+        mask_array = mask_on_dem.array+0
+        mask_on_dem = None
+    return mask_array
         
 #%% ***************************************************************************
 # *************************Public functions************************************
