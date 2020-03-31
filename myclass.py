@@ -379,8 +379,8 @@ class Raster(object):
         # coordinate of the centre on the top-left pixel
         x00centre = self.extent_dict['left'] + cellsize/2
         y00centre = self.extent_dict['top'] - cellsize/2
-        x = np.arange(x00centre, x00centre+cellsize*nx, cellsize)
-        y = np.arange(y00centre, y00centre-cellsize*ny, -cellsize)
+        x = np.arange(0, nx)*cellsize+x00centre
+        y = np.arange(0, ny)*(-cellsize)+y00centre
         xv, yv = np.meshgrid(x, y)
         return xv, yv
     

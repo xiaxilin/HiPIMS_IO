@@ -125,7 +125,7 @@ class InputHipims:
             self._global_header = self.Raster.header        
         self.set_case_folder() # set data_folders
         self.set_device_no() # set the device number
-        self.set_boundary_condition(outline_boundary='open')
+        self.set_boundary_condition(outline_boundary='fall')
         self._initialize_summary_obj()# initialize a Model Summary object
         
     def __str__(self):
@@ -139,7 +139,7 @@ class InputHipims:
 #******************************************************************************
 #************************Setup the object**************************************
     def set_boundary_condition(self, boundary_list=None,
-                               outline_boundary='open'):
+                               outline_boundary='fall'):
         """To create a Boundary object for boundary conditions
         The object contains
               outline_boundary, a dataframe of boundary type, extent, source
@@ -904,7 +904,7 @@ class Boundary(object):
     Public Properties:
         num_of_bound: number of boundaries
         data_table (data_frame) including attributes:
-            type: a list of string 'open','rigid',
+            type: a list of string 'open', 'rigid', 'fall'
                     input-output boundary is open boundary with given water
                     depth and/or velocities
             extent: (2-col numpy array) poly points to define the extent of a
@@ -926,7 +926,7 @@ class Boundary(object):
         Gen3Code: Generate 3-element boundary codes
         CellLocate: fine boundary cells with given extent
     """
-    def __init__(self, boundary_list=None, outline_boundary='open'):
+    def __init__(self, boundary_list=None, outline_boundary='fall'):
         """default outline boundary: IO, h and Q are given as constant 0 values
         1. setup data_table including attributtes:
             type, extent, hSources, hUSources
