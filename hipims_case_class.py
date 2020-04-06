@@ -165,8 +165,8 @@ class InputHipims:
         cell_id: (list of vector) valid id of cells for each boundary
         """
         # initialize a Boundary object
-        if boundary_list is None and hasattr(self, 'Boundary'):
-            boundary_list = self.Boundary.boundary_list
+#        if boundary_list is None and hasattr(self, 'Boundary'):
+#            boundary_list = self.Boundary.boundary_list
         bound_obj = Boundary(boundary_list, outline_boundary)
         valid_subs = self._valid_cell_subs
         outline_subs = self._outline_cell_subs
