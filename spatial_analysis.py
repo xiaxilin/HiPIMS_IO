@@ -159,6 +159,24 @@ def read_tif(file_name):
     ds = None
     return array, header, extent
 
+def byte_file_read(file_name):
+    """ Read file from a bytes object
+    """
+    # read header
+    header = {} # store header information including ncols, nrows, ...
+    num_header_rows = 6
+    for _ in range(num_header_rows):
+        line = file_name.readline()
+        line = line.strip().decode("utf-8").split(" ", 1)
+        header[line[0]] = float(line[1])
+        # read value array
+    array  = np.loadtxt(file_name, skiprows=num_header_rows, 
+                        dtype='float64')
+    array[array == header['NODATA_value']] = float('nan')
+    header['ncols'] = int(header['ncols'])
+    header['nrows'] = int(header['nrows'])
+    return array, header
+
 #%% ----------------------------Visulization-----------------------------------
 def map_show(array, header, figname=None, figsize=None, dpi=300,
              vmin=None, vmax=None,
