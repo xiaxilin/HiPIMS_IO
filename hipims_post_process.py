@@ -27,6 +27,8 @@ class OutputHipims:
     """To read and analyze otuput files from a HiPIMS flood model
     Properties (public):
         case_folder: (str) the absolute path of the case folder
+        input_folder: (str|list of strings) the absolute path of the 
+            input folder(s)
         output_folder: (str|list of strings) the absolute path of the 
             output folder(s)
         number_of_sections: (int) the number of subdomains of the model
@@ -61,15 +63,20 @@ class OutputHipims:
             self.num_of_sections = input_obj.num_of_sections
             self.header = input_obj.Raster.header
             self.dem_array = input_obj.Raster.array
+            self.output_folder = input_obj.data_folders['output']
+            self.input_folder = input_obj.data_folders['input']
             self.Summary = input_obj.Summary
             if input_obj.num_of_sections>1:
                 header_list = []
                 output_folder = []
+                input_folder = []
                 for sub_obj in input_obj.Sections:
                     header_list.append(sub_obj.Raster.header)
                     output_folder.append(sub_obj.data_folders['output'])
+                    input_folder.append(sub_obj.data_folders['input'])
                 self.header_list = header_list  
                 self.output_folder = output_folder
+                self.input_folder = input_folder
         else:
             raise IOError('The first argument (input_obj) must be '+
                           'a InputHipims object')
