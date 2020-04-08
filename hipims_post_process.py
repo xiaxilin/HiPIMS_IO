@@ -64,9 +64,12 @@ class OutputHipims:
             self.Summary = input_obj.Summary
             if input_obj.num_of_sections>1:
                 header_list = []
+                output_folder = []
                 for sub_obj in input_obj.Sections:
                     header_list.append(sub_obj.Raster.header)
-                self.header_list = header_list    
+                    output_folder.append(sub_obj.data_folders['output'])
+                self.header_list = header_list  
+                self.output_folder = output_folder
         else:
             raise IOError('The first argument (input_obj) must be '+
                           'a InputHipims object')
@@ -81,9 +84,9 @@ class OutputHipims:
             values: gauge values corresponding to the gauges position
         """
         if self.num_of_sections==1:
-            output_folder = self.output_folder+'/'
+            output_folder = self.output_folder
             gauge_output_file = output_folder+file_tag+'_gauges.dat'
-            gauge_pos_file = self.input_folder+'/field/gauges_pos.dat'
+            gauge_pos_file = self.input_folder+'field/gauges_pos.dat'
             if compressed:
                 gauge_output_file = gauge_output_file+'.gz'
                 gauge_pos_file = gauge_pos_file+'.gz'
@@ -118,7 +121,7 @@ class OutputHipims:
         if compressed:
             file_tag = file_tag+'.gz'
         if self.num_of_sections==1:
-            file_name = self.output_folder+'/'+file_tag
+            file_name = self.output_folder+file_tag
             grid_array, _, _ = sp.arcgridread(file_name)
         else: # multi-GPU
             grid_array = self._combine_multi_gpu_grid_data(file_tag)
@@ -196,7 +199,7 @@ class OutputHipims:
         array_global = np.zeros(grid_shape)
         for header0, folder0 in zip(header_list, output_folder):
             ind_top, ind_bottom = _header2row_numbers(header0, header_global)
-            file_name = folder0+'/'+asc_file_name
+            file_name = folder0+asc_file_name
             array_local, _, _ = sp.arcgridread(file_name)
             array_global[ind_top:ind_bottom+1,:] = array_local
         return array_global
@@ -208,14 +211,14 @@ class OutputHipims:
         case_folder = self.case_folder
         num_of_sections = self.num_of_sections
         if num_of_sections == 1: # single gpu
-            output_folder = case_folder+'/output'
-            input_folder = case_folder+'/input'
+            output_folder = case_folder+'/output/'
+            input_folder = case_folder+'/input/'
         else: #multi-gpu model
             output_folder = []
             input_folder = []
             for i in range(num_of_sections):
-                output_folder.append(case_folder+'/'+str(i)+'/output')  
-                input_folder.append(case_folder+'/'+str(i)+'/input')
+                output_folder.append(case_folder+'/'+str(i)+'/output/')  
+                input_folder.append(case_folder+'/'+str(i)+'/input/')
         self.output_folder = output_folder
         self.input_folder = input_folder
     
@@ -230,9 +233,9 @@ class OutputHipims:
         input_folder = self.input_folder
         if num_of_sections == 1:
             if asc_file is None:
-                file_name = input_folder+'/mesh/DEM.txt'
+                file_name = input_folder+'mesh/DEM.txt'
             else:
-                file_name = output_folder+'/'+asc_file
+                file_name = output_folder+asc_file
             if os.path.exists(file_name):
                 self.header = sp.arc_header_read(file_name)
             else:
@@ -242,9 +245,9 @@ class OutputHipims:
             for i in np.arange(num_of_sections):
                 print(i)
                 if asc_file is None:
-                    file_name = input_folder[i]+'/mesh/DEM.txt'
+                    file_name = input_folder[i]+'mesh/DEM.txt'
                 else:
-                    file_name = output_folder[i]+'/'+asc_file
+                    file_name = output_folder[i]+asc_file
                 if os.path.exists(file_name):
                     header = sp.arc_header_read(file_name)
                 else:
