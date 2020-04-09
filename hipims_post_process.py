@@ -18,6 +18,7 @@ import os
 import datetime
 import pickle
 import gzip
+import warnings
 import numpy as np
 import pandas as pd
 import spatial_analysis as sp
@@ -39,6 +40,8 @@ class OutputHipims:
             return gauges_pos, times, values
         read_grid_file: read grid file(s) and return a grid object
         add_gauge_results: add simulated value to the object gauge by gauge
+        add_grid_results: Read and return Raster object to attribute 
+            'grid_results'
         add_all_gauge: add all gauges as seperate records when each gauge
             position individually represent one gauge
         gauge
@@ -308,7 +311,9 @@ def _combine_gauges_data_via_ind(case_folder, num_section, file_tag):
     gauges_pos_all = []
     for i in range(num_section):
         gauge_ind_file = case_folder+'/'+str(i)+'/input/field/gauges_ind.dat'
-        ind_1 = np.loadtxt(gauge_ind_file, dtype='int')
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            ind_1 = np.loadtxt(gauge_ind_file, dtype='int')
         if ind_1.size>0:
             ind_max = max(ind_max, ind_1.max())
             file_name = case_folder+'/'+str(i)+'/input/field/gauges_pos.dat'
