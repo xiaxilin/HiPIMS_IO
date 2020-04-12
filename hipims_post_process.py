@@ -124,11 +124,12 @@ class OutputHipims:
         self.gauges_pos = gauges_pos
         return gauges_pos, times, values
     
-    def add_gauge_results(self, var_name, gauge_name='All', gauge_ind=None,  
+    def add_gauge_results(self, var_name, gauge_name=None, gauge_ind=None,  
                           compressed=False):
         """ add simulated value to the object gauge by gauge
         var_name: 'h', 'hU', 'eta'
-        gauge_name: 'All' add all gauges, then gauge_ind not needed
+        gauge_name: name of a gauge
+        gauge_ind: index to add to a gauge
         """
         # read all gauge data in all positions
         if not hasattr(self, 'gauge_values_all'):
@@ -136,33 +137,33 @@ class OutputHipims:
         else:
             if var_name not in self.gauge_values_all.keys():
                 self.read_gauges_file(var_name, compressed)
-        # add position data for a gauge
-        values = self.gauge_values_all[var_name]+0
-        values_pd = self.times_simu.copy()
-        # if for all gauge point, add to gauge_values_all
-        if not hasattr(self, 'gauge_values'):
-            self.gauge_values = {}
-        if var_name == 'h': # calculation method is min
-            one_gauge_v = values[:, gauge_ind]
-            one_gauge_v = one_gauge_v.max(axis=1)
-            values_pd['values'] = one_gauge_v
-        elif var_name == 'hU':
-            one_gauge_v = values[:, :, gauge_ind]
-            one_gauge_v = one_gauge_v.sum(axis=2)*self.header['cellsize']
-            values_pd['values_x'] = one_gauge_v[0]
-            values_pd['values_y'] = one_gauge_v[1]
-        elif var_name == 'eta':
-            if gauge_ind is not None and gauge_ind.size>1:
-                raise ValueError('gauge_ind for eta must be a scalar')
-            else:
+        if gauge_ind is not None:
+            # add position data for a gauge
+            values = self.gauge_values_all[var_name]+0
+            values_pd = self.times_simu.copy()
+            if not hasattr(self, 'gauge_values'):
+                self.gauge_values = {}
+            if var_name == 'h': # calculation method is min
                 one_gauge_v = values[:, gauge_ind]
-                values_pd['values'] = one_gauge_v        
-        if gauge_name in self.gauge_values.keys():
-            gauge_dict = self.gauge_values[gauge_name]
-            gauge_dict[var_name] = values_pd
-        else:
-            gauge_dict = {var_name:values_pd}
-        self.gauge_values[gauge_name] = gauge_dict
+                one_gauge_v = one_gauge_v.max(axis=1)
+                values_pd['values'] = one_gauge_v
+            elif var_name == 'hU':
+                one_gauge_v = values[:, :, gauge_ind]
+                one_gauge_v = one_gauge_v.sum(axis=2)*self.header['cellsize']
+                values_pd['values_x'] = one_gauge_v[0]
+                values_pd['values_y'] = one_gauge_v[1]
+            elif var_name == 'eta':
+                if gauge_ind.size == 1:
+                    raise ValueError('gauge_ind for eta must be a scalar')
+                else:
+                    one_gauge_v = values[:, gauge_ind]
+                    values_pd['values'] = one_gauge_v
+            if gauge_name in self.gauge_values.keys():
+                gauge_dict = self.gauge_values[gauge_name]
+                gauge_dict[var_name] = values_pd
+            else:
+                gauge_dict = {var_name:values_pd}
+            self.gauge_values[gauge_name] = gauge_dict
         
     def read_grid_file(self, file_tag='h_0', compressed=False):
         """Read asc grid files from output
