@@ -152,7 +152,7 @@ class OutputHipims:
             values_pd['values_x'] = one_gauge_v[0]
             values_pd['values_y'] = one_gauge_v[1]
         elif var_name == 'eta':
-            if gauge_ind.size>1:
+            if gauge_ind is not None and gauge_ind.size>1:
                 raise ValueError('gauge_ind for eta must be a scalar')
             else:
                 one_gauge_v = values[:, gauge_ind]
