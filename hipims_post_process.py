@@ -205,7 +205,11 @@ class OutputHipims:
             self.ref_datetime = date_time
         else:
             raise IOError('date_time must be a datetime object or a string')
-    
+        if hasattr(self, 'times_simu'):
+            times_delta = self.times_simu['times'].astype('timedelta64[s]')
+            date_times = np.datetime64(self.ref_datetime)+times_delta                    
+            self.times_simu['date_times'] = date_times   
+
     def _combine_multi_gpu_grid_data(self, asc_file_name):
         """Combine multi-gpu grid files into a single file
         asc_file_name: string endswith '.asc'
