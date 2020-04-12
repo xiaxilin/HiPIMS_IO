@@ -118,8 +118,52 @@ class OutputHipims:
             times_delta = times.astype('timedelta64[s]')
             date_times = np.datetime64(self.ref_datetime)+times_delta                    
             self.times_simu['date_times'] = date_times
+        if not hasattr(self, 'gauge_values_all'):
+            self.gauge_values_all = {}
+        self.gauge_values_all[file_tag] = values
+        self.gauges_pos = gauges_pos
         return gauges_pos, times, values
     
+    def add_gauge_results(self, var_name, gauge_name='All', gauge_ind=None,  
+                          compressed=False):
+        """ add simulated value to the object gauge by gauge
+        var_name: 'h', 'hU', 'eta'
+        gauge_name: 'All' add all gauges, then gauge_ind not needed
+        """
+        # read all gauge data in all positions
+        if not hasattr(self, 'gauge_values_all'):
+            self.read_gauges_file(var_name, compressed)
+        else:
+            if var_name not in self.gauge_values_all.keys():
+                self.read_gauges_file(var_name, compressed)
+        # add position data for a gauge
+        values = self.gauge_values_all[var_name]+0
+        values_pd = self.times_simu.copy()
+        # if for all gauge point, add to gauge_values_all
+        if not hasattr(self, 'gauge_values'):
+            self.gauge_values = {}
+        if var_name == 'h': # calculation method is min
+            one_gauge_v = values[:, gauge_ind]
+            one_gauge_v = one_gauge_v.max(axis=1)
+            values_pd['values'] = one_gauge_v
+        elif var_name == 'hU':
+            one_gauge_v = values[:, :, gauge_ind]
+            one_gauge_v = one_gauge_v.sum(axis=2)*self.header['cellsize']
+            values_pd['values_x'] = one_gauge_v[0]
+            values_pd['values_y'] = one_gauge_v[1]
+        elif var_name == 'eta':
+            if gauge_ind.size>1:
+                raise ValueError('gauge_ind for eta must be a scalar')
+            else:
+                one_gauge_v = values[:, gauge_ind]
+                values_pd['values'] = one_gauge_v        
+        if gauge_name in self.gauge_values.keys():
+            gauge_dict = self.gauge_values[gauge_name]
+            gauge_dict[var_name] = values_pd
+        else:
+            gauge_dict = {var_name:values_pd}
+        self.gauge_values[gauge_name] = gauge_dict
+        
     def read_grid_file(self, file_tag='h_0', compressed=False):
         """Read asc grid files from output
         Return
@@ -137,43 +181,6 @@ class OutputHipims:
             grid_array = self._combine_multi_gpu_grid_data(file_tag)
         grid_obj = Raster(array=grid_array, header=self.header)
         return grid_obj
-    
-    def add_gauge_results(self, var_name, gauge_name='All', gauge_ind=None,  
-                          compressed=False):
-        """ add simulated value to the object gauge by gauge
-        var_name: 'h', 'hU', 'eta'
-        gauge_name: 'All' add all gauges, then gauge_ind not needed
-        """
-        if not hasattr(self, 'gauge_values'):
-            self.gauge_values = {}
-        gauges_pos, _, values = self.read_gauges_file(var_name, compressed)
-        values_pd = self.times_simu.copy()
-        if gauge_ind is None:
-            gauge_ind = np.arange(gauges_pos.shape[0])
-            gauge_name = 'All'
-        if var_name == 'h': # calculation method is min
-            values = values[:, gauge_ind]
-            values_all = values+0
-            values = values.max(axis=1)
-            values_pd['values'] = values
-        elif var_name == 'hU':
-            values = values[:, :, gauge_ind]
-            values_all = values+0
-            values = values.sum(axis=2)*self.header['cellsize']
-            values_pd['values_x'] = values[0]
-            values_pd['values_y'] = values[1]
-        else:
-            values = values[:, gauge_ind]
-            values_all = values+0
-            values_pd['values'] = values        
-        if gauge_name in self.gauge_values.keys():
-            gauge_dict = self.gauge_values[gauge_name]
-            gauge_dict[var_name] = values_pd
-        else:
-            gauge_dict = {var_name:values_pd}
-        gauge_dict[var_name+'_all'] = values_all
-        self.gauge_values[gauge_name] = gauge_dict
-        self.gauges_pos = gauges_pos
     
     def add_grid_results(self, result_names, compressed=False):
         """Read and return Raster object to attribute 'grid_results'
