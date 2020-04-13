@@ -1423,7 +1423,7 @@ def _generate_mask_for_DEM(mask_origin, dem_data):
         mask_origin = None
     else:
         mask_on_dem = dem_obj.grid_interpolate(mask_obj)
-        mask_array = mask_on_dem.array+0
+        mask_array = mask_on_dem+0
         mask_on_dem = None
     return mask_array
         
