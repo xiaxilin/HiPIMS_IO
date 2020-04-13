@@ -30,9 +30,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as mplP
-import myclass  # to call class Raster
+from Raster import Raster  # to call class Raster
 from datetime import datetime
-from spatial_analysis import sub2map
+from spatial_analysis import sub2map, header2extent, extent2shape_points
 #%% grid data for HiPIMS input format
 class InputHipims:
     """To define input files for a HiPIMS flood model case
@@ -105,8 +105,8 @@ class InputHipims:
         """
         self.birthday = datetime.now()
         if type(dem_data) is str:
-            self.Raster = myclass.Raster(dem_data) # create Raster object
-        elif type(dem_data) is myclass.Raster:
+            self.Raster = Raster(dem_data) # create Raster object
+        elif type(dem_data) is Raster:
             self.Raster = dem_data
         if case_folder is None:
             case_folder = os.getcwd()
@@ -136,7 +136,7 @@ class InputHipims:
         self.Summary.display()
         time_str = self.birthday.strftime('%Y-%m-%d %H:%M:%S')
         return  self.__class__.__name__+' object created on '+ time_str
-    __repr__ = __str__
+#    __repr__ = __str__
 #******************************************************************************
 #************************Setup the object**************************************
     def set_boundary_condition(self, boundary_list=None,
@@ -217,7 +217,7 @@ class InputHipims:
         """
         if rain_mask is None:
             rain_mask = self.attributes['precipitation_mask']
-        elif type(rain_mask) is myclass.Raster:
+        elif type(rain_mask) is Raster:
             rain_mask = _generate_mask_for_DEM(rain_mask, self.Raster)
             self.attributes['precipitation_mask'] = rain_mask
         elif type(rain_mask) is np.ndarray:
@@ -505,11 +505,11 @@ class InputHipims:
         self._make_data_dirs()
         if is_single_gpu is True or self.num_of_sections == 1:
             file_name = self.data_folders['mesh']+'DEM.txt'
-            self.Raster.Write_asc(file_name)
+            self.Raster.write_asc(file_name)
         else:
             for obj_section in self.Sections:
                 file_name = obj_section.data_folders['mesh']+'DEM.txt'
-                obj_section.Raster.Write_asc(file_name)
+                obj_section.Raster.write_asc(file_name)
         self.Summary.write_readme(self.case_folder+'/readme.txt')
         print('DEM.txt created')
     
@@ -948,7 +948,7 @@ class InputHipimsSub(InputHipims):
     def __init__(self, dem_array, header, case_folder, num_of_sections):
         self.section_id = InputHipimsSub.section_id
         InputHipimsSub.section_id = self.section_id+1
-        dem_data = myclass.Raster(array=dem_array, header=header)
+        dem_data = Raster(array=dem_array, header=header)
         super().__init__(dem_data, num_of_sections, case_folder)
 
 #%% boundary class definition
@@ -1047,11 +1047,11 @@ class Boundary(object):
         cell_id = []
         for n in range(data_table.shape[0]):
             if data_table.extent[n] is None: #outline boundary
-                dem_extent = myclass.header2extent(dem_header)
-                polyPoints = myclass.makeDiagonalShape(dem_extent)
+                dem_extent = header2extent(dem_header)
+                polyPoints = extent2shape_points(dem_extent)
             elif len(data_table.extent[n]) == 2:
                 xyv = data_table.extent[n]
-                polyPoints = myclass.makeDiagonalShape([np.min(xyv[:, 0]),
+                polyPoints = extent2shape_points([np.min(xyv[:, 0]),
                                                         np.max(xyv[:, 0]),
                                                         np.min(xyv[:, 1]),
                                                         np.max(xyv[:, 1])])
@@ -1425,15 +1425,15 @@ def _generate_mask_for_DEM(mask_origin, dem_data):
     the interpolating method is nearest
     """
     if type(mask_origin) is str:
-        mask_obj = myclass.Raster(mask_origin)
-    elif type(mask_origin) is myclass.Raster:
+        mask_obj = Raster(mask_origin)
+    elif type(mask_origin) is Raster:
         mask_obj = mask_origin
     else:
         raise ValueError('mask_origin must be either a filename ',
                          'string or a Raster object')
     if type(dem_data) is str:
-        dem_obj = myclass.Raster(dem_data)
-    elif type(dem_data) is myclass.Raster:
+        dem_obj = Raster(dem_data)
+    elif type(dem_data) is Raster:
         dem_obj = dem_data
     else:
         raise ValueError('mask_origin must be either a filename ',
