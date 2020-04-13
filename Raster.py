@@ -83,6 +83,7 @@ class Raster(object):
         self.extent = extent
         self.extent_dict = {'left':extent[0], 'right':extent[1],
                             'bottom':extent[2], 'top':extent[3]}
+        self.Write_asc = self.write_asc # comptatible with the myclass version
             
 #%%============================= Spatial analyst ==============================   
     def rect_clip(self, clip_extent):

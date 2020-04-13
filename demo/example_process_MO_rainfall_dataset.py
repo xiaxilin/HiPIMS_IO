@@ -13,10 +13,6 @@ Created on Tue Feb 10 11:56:46 2020
 
 @author: XIaodong Ming
 """
-import sys
-# position storing HiPIMS_IO.py and ArcGridDataProcessing.py
-scriptsPath = '/Users/ming/Dropbox/Python/HiPIMS' 
-sys.path.insert(0,scriptsPath)
 import glob
 import os
 import time
