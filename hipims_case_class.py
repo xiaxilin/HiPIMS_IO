@@ -341,7 +341,39 @@ class InputHipims:
             self.birthday = datetime.now()
         else:
             raise ValueError('The object cannot be decomposited!')
-
+    
+    def field2grid(self, file_tag):
+        """Convert grid-based field file to a grid dataset
+        file_tag: 'h', 'hU', 'z',... grid-based field file
+        """
+        def read_field(file_name):
+            """Read a field file and return field values
+            """
+            num_rows = np.loadtxt(file_name, skiprows=1, max_rows=1)
+            num_rows = int(num_rows)
+            id_value = np.loadtxt(file_name, skiprows=3, max_rows=num_rows)
+            return id_value[:,1:]
+        output_array0 = self.Raster.array*0+0
+        if file_tag=='hU':
+            output_array1 = output_array0+0
+            output_array = [output_array0, output_array1]
+        else:
+            output_array = output_array0
+        if self.num_of_sections == 1:
+            file_name = self.data_folders['field']+file_tag+'.dat'
+            id_value = read_field(file_name)
+            output_array0[self._valid_cell_subs] = id_value[:,0]
+            if file_tag=='hU':
+                output_array1[self._valid_cell_subs] = id_value[:,1]
+        else: # multi-gpu
+            for obj_0 in self.Sections:
+                file_name = obj_0.data_folders['field']+file_tag+'.dat'
+                id_value = read_field(file_name)
+                output_array0[obj_0.valid_subs_global] = id_value[:,0]
+                if file_tag=='hU':
+                    output_array1[obj_0.valid_subs_global] = id_value[:,1] 
+        return output_array
+                
     def write_input_files(self, file_tag=None):
         """ Write input files
         To classify the input files and call functions needed to write each
@@ -431,7 +463,8 @@ class InputHipims:
         if self.num_of_sections > 1:  # multiple-GPU
             for obj_section in self.Sections:
                 field_dir = obj_section.data_folders['field']
-                obj_section.__write_gauge_ind(field_dir)
+                if 'gauges_ind' in self.attributes.keys():
+                    obj_section.__write_gauge_ind(field_dir)
                 obj_section.__write_gauge_pos(field_dir)
         else:  # single-GPU
             field_dir = self.data_folders['field']
@@ -1614,3 +1647,9 @@ class ModelSummary:
         """
         # Overwrites any existing file.
         save_object(self, file_name, compression)
+
+def main():
+    print('Package to set up hipims input')
+
+if __name__=='__main__':
+    main()
