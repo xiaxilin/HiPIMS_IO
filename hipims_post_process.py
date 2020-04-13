@@ -18,6 +18,7 @@ import os
 import datetime
 import pickle
 import gzip
+import shutil
 import warnings
 import numpy as np
 import pandas as pd
@@ -208,7 +209,14 @@ class OutputHipims:
         if hasattr(self, 'times_simu'):
             times_delta = self.times_simu['times'].astype('timedelta64[s]')
             date_times = np.datetime64(self.ref_datetime)+times_delta                    
-            self.times_simu['date_times'] = date_times   
+            self.times_simu['date_times'] = date_times
+    
+    def backup2initial(self, backup_time, remove=False):
+        """ copy backup file in output to initial condition files in input
+        """
+        case_folder = self.case_folder
+        num_section = self.num_section
+        backup2initial(case_folder, num_section, backup_time, remove)
 
     def _combine_multi_gpu_grid_data(self, asc_file_name):
         """Combine multi-gpu grid files into a single file
@@ -446,3 +454,24 @@ def _header_local2global(header_list):
     nrows = (y_top-y_bottom)/header_global['cellsize']
     header_global['nrows'] = int(round(nrows))
     return header_global
+
+#%% copy backup files as initial condition files
+def backup2initial(case_folder, num_section, backup_time, remove=False):
+    if case_folder[-1]!='/':
+        case_folder = case_folder+'/'
+    for i in range(num_section):
+        output_dir = case_folder+str(i)+'/output/'
+        input_dir = case_folder+str(i)+'/input/field/'
+        file_backup = output_dir+'h_backup__'+str(backup_time)+'.dat'
+        file_initial = input_dir+'h.dat'
+        print(file_backup)
+        print(file_initial)
+        shutil.copy(file_backup,file_initial)
+        if remove==True:
+            os.remove(file_backup)
+        fileBackup = output_dir+'hU_backup__'+str(backup_time)+'.dat'
+        fileInitial = input_dir+'hU.dat'
+        shutil.copy(fileBackup,fileInitial)
+        if remove==True:
+            os.remove(fileBackup)
+    return None
