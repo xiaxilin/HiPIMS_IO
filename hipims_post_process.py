@@ -23,7 +23,7 @@ import warnings
 import numpy as np
 import pandas as pd
 import spatial_analysis as sp
-from myclass import Raster
+from Raster import Raster
 #import hipims_case_class
 class OutputHipims:
     """To read and analyze otuput files from a HiPIMS flood model
@@ -308,8 +308,8 @@ def save_object(obj, file_name, compression=True):
     """ Save the object
     """
     # Overwrites any existing file.
-    if not file_name.endswith('.pickle'):
-        file_name = file_name+'.pickle'
+    if not file_name.endswith('.gz'):
+        file_name = file_name+'.gz'
     if compression:
         with gzip.open(file_name, 'wb') as output_file:
             pickle.dump(obj, output_file, pickle.HIGHEST_PROTOCOL)
